@@ -1,0 +1,18 @@
+#!/bin/sh
+
+MODEL_PATH="/proc/device-tree/model"
+TARGET_MODEL="Luckfox Lyra Pi"
+
+case "$1" in
+	start)
+		if grep -q "$TARGET_MODEL" "$MODEL_PATH";then
+			echo "Detected $TARGET_MODEL, configuring audio..."
+			amixer set 'MIC PGA' on
+			amixer set 'ADC MONO' on
+		fi
+		;;
+	*)
+		echo "Usage: [start|stop|restart]" >&2
+		exit 3
+		;;
+esac

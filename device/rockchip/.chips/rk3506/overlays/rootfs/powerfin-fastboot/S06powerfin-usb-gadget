@@ -1,0 +1,19 @@
+#!/bin/sh
+
+case "$1" in
+start)
+	# These are built into the PowerFin recovery kernel. Keep the probes for
+	# compatibility with older modular kernels, but do not make their success a
+	# condition for starting usbdevice.
+	modprobe usb_f_fs 2>/dev/null || true
+	modprobe usb_f_rndis 2>/dev/null || true
+	;;
+stop)
+	# The gadget setup service owns unbinding and function cleanup.
+	:
+	;;
+*)
+	echo "Usage: $0 {start|stop}" >&2
+	exit 1
+	;;
+esac

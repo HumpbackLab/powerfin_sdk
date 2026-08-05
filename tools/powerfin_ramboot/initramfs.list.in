@@ -1,0 +1,27 @@
+dir /bin 0755 0 0
+dir /dev 0755 0 0
+dir /etc 0755 0 0
+dir /proc 0555 0 0
+dir /run 0755 0 0
+dir /sbin 0755 0 0
+dir /sys 0555 0 0
+dir /sys/kernel 0555 0 0
+dir /sys/kernel/config 0755 0 0
+dir /tmp 01777 0 0
+dir /usr 0755 0 0
+dir /usr/bin 0755 0 0
+dir /usr/libexec 0755 0 0
+dir /usr/libexec/penguin-flight-console 0755 0 0
+dir /usr/libexec/penguin-flight-console/powerfin 0755 0 0
+dir /var 0755 0 0
+dir /var/log 0755 0 0
+file /init @INIT@ 0755 0 0
+file /bin/busybox @BUSYBOX@ 0755 0 0
+file /etc/powerfin-recovery-udhcpd.conf @UDHCPD_CONFIG@ 0644 0 0
+file /usr/bin/penguin-flight-console @PFC_BINARY@ 0755 0 0
+file /usr/libexec/penguin-flight-console/powerfin/board.conf @PFC_BOARD_DIR@/board.conf 0644 0 0
+file /usr/libexec/penguin-flight-console/powerfin/sdcard-flash.sh @PFC_BOARD_DIR@/sdcard-flash.sh 0755 0 0
+slink /bin/sh busybox 0777 0 0
+slink /sbin/reboot /bin/busybox 0777 0 0
+nod /dev/console 0600 0 0 c 5 1
+nod /dev/null 0666 0 0 c 1 3

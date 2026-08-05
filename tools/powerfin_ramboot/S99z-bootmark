@@ -1,0 +1,8 @@
+#!/bin/sh
+
+case "${1:-start}" in
+	start)
+		echo POWERFIN_ROOTFS_READY
+		cat /proc/uptime
+		;;
+esac

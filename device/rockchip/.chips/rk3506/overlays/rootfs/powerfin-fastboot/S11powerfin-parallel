@@ -1,0 +1,124 @@
+#!/bin/sh
+
+INIT_DIR=/usr/libexec/powerfin-init
+LOG_DIR=/var/log/powerfin-init
+WORKER_PID=/run/powerfin-parallel.pid
+SYSTEM_READY=/run/powerfin-system-ready
+
+WAIT_SERVICES="
+S11alsa-utils
+S30dbus
+S35es8311
+S35wifibt-poweron.sh
+S40network
+S50sshd
+"
+
+uptime_now()
+{
+	read value ignored </proc/uptime
+	echo "$value"
+}
+
+start_one()
+{
+	service="$1"
+	if [ "$service" = S35wifibt-poweron.sh ] && \
+		[ "$(cat /etc/penguin-flight-console/wifi-mode 2>/dev/null)" = off ]; then
+		echo "PowerFin Wi-Fi power-on skipped"
+		return 0
+	fi
+	started=$(uptime_now)
+	"$INIT_DIR/$service" start
+	status=$?
+	finished=$(uptime_now)
+	printf '[parallel %s -> %s] done(%d) %s\n' \
+		"$started" "$finished" "$status" "$service"
+	return "$status"
+}
+
+run_wait_group()
+{
+	pids=""
+	for service in $WAIT_SERVICES; do
+		start_one "$service" >"$LOG_DIR/$service.log" 2>&1 &
+		pids="$pids $!"
+	done
+
+	set -- $pids
+	result=0
+	for service in $WAIT_SERVICES; do
+		pid="$1"
+		shift
+		if wait "$pid"; then
+			status=0
+		else
+			status=$?
+			result=1
+		fi
+		printf '[parallel %s] done(%d) %s\n' \
+			"$(uptime_now)" "$status" "$service"
+	done
+
+	rm -f "$WORKER_PID"
+	touch "$SYSTEM_READY"
+	{
+		echo POWERFIN_SYSTEM_READY
+		cat /proc/uptime
+	} >/dev/console
+	return "$result"
+}
+
+start_all()
+{
+	mkdir -p "$LOG_DIR"
+	rm -f "$SYSTEM_READY" "$WORKER_PID"
+
+	# The config must exist before usbdevice starts. usbdevice and the RNDIS
+	# address worker both detach, so launch them before the regular service
+	# group and return immediately to the core boot path.
+	"$INIT_DIR/S45usbconfig" start >"$LOG_DIR/S45usbconfig.log" 2>&1
+	"$INIT_DIR/S50usbdevice.sh" start \
+		>"$LOG_DIR/S50usbdevice.log" 2>&1
+	"$INIT_DIR/S51powerfin-rndis" start \
+		>"$LOG_DIR/S51powerfin-rndis.log" 2>&1
+	"$INIT_DIR/S60netdevice" start \
+		>"$LOG_DIR/S60netdevice.log" 2>&1 &
+	"$INIT_DIR/S99-auto-reboot" start \
+		>"$LOG_DIR/S99-auto-reboot.log" 2>&1 &
+
+	run_wait_group >"$LOG_DIR/parallel.log" 2>&1 &
+	echo $! >"$WORKER_PID"
+}
+
+stop_all()
+{
+	if [ -s "$WORKER_PID" ]; then
+		kill "$(cat "$WORKER_PID")" 2>/dev/null || true
+		rm -f "$WORKER_PID"
+	fi
+
+	# Reverse the meaningful dependencies. The audio and rfkill helpers have
+	# no stop action, so there is nothing to call for them.
+	"$INIT_DIR/S51powerfin-rndis" stop
+	"$INIT_DIR/S50usbdevice.sh" stop
+	"$INIT_DIR/S99-auto-reboot" stop
+	"$INIT_DIR/S60netdevice" stop
+	"$INIT_DIR/S50sshd" stop
+	"$INIT_DIR/S40network" stop
+	"$INIT_DIR/S30dbus" stop
+	"$INIT_DIR/S11alsa-utils" stop
+}
+
+case "$1" in
+start)
+	start_all
+	;;
+stop)
+	stop_all
+	;;
+*)
+	echo "Usage: $0 {start|stop}" >&2
+	exit 1
+	;;
+esac

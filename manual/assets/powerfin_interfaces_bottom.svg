@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="4200" height="4300" viewBox="0 0 4200 4300">
+<defs><style>.title{font-family:'DejaVu Sans';font-size:120px;font-weight:bold}.port{fill:white;stroke:#111;stroke-width:10}.head{font-family:'DejaVu Sans';font-size:72px;font-weight:bold}.pin{font-family:'DejaVu Sans';font-size:74px;font-weight:bold;text-anchor:middle}.sig{fill:#3970a8}.pwr{fill:#d52b2b}.gnd{fill:#111}.dash{fill:none;stroke:#3970a8;stroke-width:14;stroke-dasharray:28 22}.dim{fill:none;stroke:#e32636;stroke-width:24}.dim-ext{fill:none;stroke:#e32636;stroke-width:14;stroke-dasharray:28 18}.dim-text{font-family:'DejaVu Sans';font-size:105px;font-weight:bold;fill:#b31322;text-anchor:middle}</style></defs>
+<rect width="4200" height="4300" fill="white"/><text class="title" x="2100" y="145" text-anchor="middle">PowerFin - Back Interfaces</text>
+<image xlink:href="manual/powerfin_bottom.png" x="1000" y="850" width="2200" height="2229"/>
+
+<g transform="translate(2500 250)"><rect class="port" width="1000" height="370"/><text class="head" x="500" y="85" text-anchor="middle">UART0 / DEBUG</text><path d="M0 125H1000M250 125V370M500 125V370M750 125V370" stroke="#111" stroke-width="8"/><text class="pin" fill="#3970a8" x="125" y="275">TX</text><text class="pin" fill="#3970a8" x="375" y="275">RX</text><text class="pin" fill="#111111" x="625" y="275">GND</text><text class="pin" fill="#d52b2b" x="875" y="275">5V</text></g><path class="dash" d="M3000 620L2650 930"/>
+
+<g transform="translate(80 900)"><rect class="port" width="820" height="720"/><path d="M400 0V720M400 90H820M400 180H820M400 270H820M400 360H820M400 450H820M400 540H820M400 630H820" stroke="#111" stroke-width="8"/><text class="head" x="200" y="330" text-anchor="middle">4-in-1</text><text class="head" x="200" y="420" text-anchor="middle">ESC</text><text class="pin" fill="#3970a8" x="610" y="70">VOLT</text><text class="pin" fill="#111111" x="610" y="160">GND</text><text class="pin" fill="#3970a8" x="610" y="250">CURR</text><text class="pin" fill="#111111" x="610" y="340">NC</text><text class="pin" fill="#3970a8" x="610" y="430">M1</text><text class="pin" fill="#3970a8" x="610" y="520">M2</text><text class="pin" fill="#3970a8" x="610" y="610">M3</text><text class="pin" fill="#3970a8" x="610" y="700">M4</text></g><path class="dash" d="M900 1260L1050 1500"/>
+
+<g transform="translate(3300 1050)"><rect class="port" width="820" height="400"/><path d="M420 0V400M0 100H420M0 200H420M0 300H420" stroke="#111" stroke-width="8"/><text class="head" x="620" y="230" text-anchor="middle">UART3</text><text class="pin" fill="#3970a8" x="210" y="78">TX</text><text class="pin" fill="#3970a8" x="210" y="178">RX</text><text class="pin" fill="#111111" x="210" y="278">GND</text><text class="pin" fill="#d52b2b" x="210" y="378">5V</text></g><path class="dash" d="M3300 1250L3140 1600"/>
+
+<g transform="translate(3310 1900)"><rect class="port" width="850" height="330"/><text class="head" x="425" y="85" text-anchor="middle">microSD</text><text class="pin" fill="#3970a8" x="425" y="210">Flight Logs</text><text class="pin" fill="#111111" x="425" y="280">User Data</text></g><path class="dash" d="M3310 2050L2850 2200"/>
+
+<g transform="translate(200 3250)"><rect class="port" width="1000" height="350"/><text class="head" x="500" y="90" text-anchor="middle">ANALOG VIDEO INPUT</text><path d="M0 130H1000M333 130V350M666 130V350" stroke="#111" stroke-width="8"/><text class="pin" fill="#d52b2b" x="166" y="270">5V</text><text class="pin" fill="#111111" x="499" y="270">GND</text><text class="pin" fill="#3970a8" x="833" y="250">VIDEO</text><text class="pin" fill="#3970a8" x="833" y="315">IN (VR)</text></g><path class="dash" d="M1200 3420L1850 3000"/>
+
+<!-- 30.5 mm square mounting-hole pattern, measured center to center -->
+<line class="dim-ext" x1="1275" y1="1090" x2="1275" y2="735"/>
+<line class="dim-ext" x1="2940" y1="1090" x2="2940" y2="735"/>
+<line class="dim" x1="1305" y1="735" x2="2910" y2="735"/>
+<path d="M1275 735L1345 690V780Z" fill="#e32636"/><path d="M2940 735L2870 690V780Z" fill="#e32636"/>
+<rect x="1848" y="660" width="520" height="130" rx="22" fill="white" stroke="#e32636" stroke-width="8"/>
+<text class="dim-text" x="2108" y="760">30.5 mm</text>
+<line class="dim-ext" x1="2940" y1="1090" x2="3245" y2="1090"/>
+<line class="dim-ext" x1="2940" y1="2825" x2="3245" y2="2825"/>
+<line class="dim" x1="3245" y1="1120" x2="3245" y2="2795"/>
+<path d="M3245 1090L3200 1160H3290Z" fill="#e32636"/><path d="M3245 2825L3200 2755H3290Z" fill="#e32636"/>
+<rect x="2740" y="1890" width="520" height="130" rx="22" fill="white" stroke="#e32636" stroke-width="8"/>
+<text class="dim-text" x="3000" y="1990">30.5 mm</text>
+
+</svg>

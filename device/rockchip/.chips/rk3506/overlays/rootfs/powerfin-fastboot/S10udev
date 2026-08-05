@@ -1,0 +1,33 @@
+#!/bin/sh
+
+UDEV_CONFIG=/etc/udev/udev.conf
+test -r "$UDEV_CONFIG" || exit 6
+. "$UDEV_CONFIG"
+
+case "$1" in
+start)
+	printf 'Starting udev without global settle: '
+	[ -e /proc/sys/kernel/hotplug ] && \
+		printf '\000\000\000\000' > /proc/sys/kernel/hotplug
+	/sbin/udevd -d || {
+		echo FAIL
+		exit 1
+	}
+
+	# Queue discovery for compatibility with existing rules. Do not wait for
+	# every unrelated device event before continuing the boot sequence.
+	udevadm trigger --type=subsystems --action=add
+	udevadm trigger --type=devices --action=add
+	echo done
+	;;
+stop)
+	udevadm control --stop-exec-queue
+	killall udevd
+	;;
+*)
+	echo "Usage: $0 {start|stop}"
+	exit 1
+	;;
+esac
+
+exit 0

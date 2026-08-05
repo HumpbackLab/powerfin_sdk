@@ -1,7 +1,34 @@
-# The SDK root repository contains integration text files only. Binary/LFS
-# policy belongs to the component repository that owns each file.
+# Source and configuration stay as normal Git objects.
 * text=auto
 *.sh text eol=lf
 *.md text eol=lf
 *.xml text eol=lf
 
+# Binary assets owned by the root SDK repository are stored in Git LFS.
+*.pdf filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+*.7z filter=lfs diff=lfs merge=lfs -text
+*.rar filter=lfs diff=lfs merge=lfs -text
+*.tar filter=lfs diff=lfs merge=lfs -text
+*.tar.gz filter=lfs diff=lfs merge=lfs -text
+*.tar.xz filter=lfs diff=lfs merge=lfs -text
+*.a filter=lfs diff=lfs merge=lfs -text
+*.so filter=lfs diff=lfs merge=lfs -text
+*.ko filter=lfs diff=lfs merge=lfs -text
+*.bin filter=lfs diff=lfs merge=lfs -text
+*.elf filter=lfs diff=lfs merge=lfs -text
+*.axf filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.gba filter=lfs diff=lfs merge=lfs -text
+
+# Large vendor host tools without useful filename extensions.
+/device/rockchip/common/tools/x86_64/qemu-aarch64-static filter=lfs diff=lfs merge=lfs -text
+/device/rockchip/common/tools/x86_64/qemu-arm-static filter=lfs diff=lfs merge=lfs -text
+/device/rockchip/common/tools/aarch64/gdb filter=lfs diff=lfs merge=lfs -text
+/device/rockchip/common/tools/armhf/gdb filter=lfs diff=lfs merge=lfs -text
+/device/rockchip/common/tools/aarch64/perf-6.1 filter=lfs diff=lfs merge=lfs -text
+/device/rockchip/common/tools/armhf/perf-6.1 filter=lfs diff=lfs merge=lfs -text
+/tools/linux/rk_sign_tool/bin/** filter=lfs diff=lfs merge=lfs -text
+/tools/linux/rk_sign_tool/rk_sign_tool filter=lfs diff=lfs merge=lfs -text

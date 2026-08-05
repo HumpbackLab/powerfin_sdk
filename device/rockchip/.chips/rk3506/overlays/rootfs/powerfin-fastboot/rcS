@@ -1,0 +1,36 @@
+#!/bin/sh
+
+init_stamp()
+{
+	if [ -r /proc/uptime ]; then
+		read init_uptime init_idle < /proc/uptime
+	else
+		init_uptime=0.00
+	fi
+	printf '[init %s] %s %s\n' "$init_uptime" "$1" "$2"
+}
+
+# Start all init scripts in numerical order and expose the duration of every
+# script on the console. This instrumentation can be removed after tuning.
+for i in /etc/init.d/S??*; do
+	[ ! -f "$i" ] && continue
+
+	name=${i##*/}
+	init_stamp start "$name"
+
+	case "$i" in
+	*.sh)
+		(
+			trap - INT QUIT TSTP
+			set start
+			. "$i"
+		)
+		;;
+	*)
+		"$i" start
+		;;
+	esac
+
+	status=$?
+	init_stamp "done($status)" "$name"
+done

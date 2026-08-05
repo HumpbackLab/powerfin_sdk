@@ -1,0 +1,14 @@
+# Generated manual
+/PowerFin_User_Manual.pdf
+
+# Local Typst previews and temporary exports
+/preview/
+/preview-*.png
+/.typst-cache/
+
+# Editor and operating-system files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

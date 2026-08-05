@@ -1,0 +1,36 @@
+#!/bin/sh
+
+start_interface()
+{
+	interface="$1"
+	mac_file="/etc/.${interface}_macaddr"
+
+	[ -d "/sys/class/net/$interface" ] || return 0
+	ip link set "$interface" up
+
+	current_mac=$(cat "/sys/class/net/$interface/address")
+	if [ -s "$mac_file" ]; then
+		ip link set "$interface" down
+		ip link set "$interface" address "$(cat "$mac_file")"
+		ip link set "$interface" up
+	else
+		echo "$current_mac" >"$mac_file"
+	fi
+
+	udhcpc -i "$interface" >"/tmp/${interface}_udhcpc.log" 2>&1 &
+}
+
+case "$1" in
+start)
+	# Keep the generic wired-network behavior, without its eight-second RNDIS
+	# delay. Wi-Fi initialization is managed independently.
+	start_interface eth0
+	start_interface eth1
+	;;
+stop)
+	;;
+*)
+	echo "Usage: $0 {start|stop}" >&2
+	exit 1
+	;;
+esac

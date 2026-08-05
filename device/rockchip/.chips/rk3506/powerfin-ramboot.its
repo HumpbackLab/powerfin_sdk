@@ -1,0 +1,60 @@
+/*
+ * SPDX-License-Identifier: GPL-2.0
+ */
+
+/dts-v1/;
+/ {
+	description = "PowerFin kernel fast-boot debug image";
+
+	images {
+		fdt {
+			data = /incbin/("@KERNEL_DTB@");
+			type = "flat_dt";
+			arch = "arm";
+			compression = "none";
+			load = <0xffffff00>;
+
+			hash {
+				algo = "sha256";
+			};
+		};
+
+		kernel {
+			data = /incbin/("@KERNEL_IMG@");
+			type = "kernel";
+			arch = "arm";
+			os = "linux";
+			compression = "none";
+			entry = <0xffffff01>;
+			load = <0xffffff01>;
+
+			hash {
+				algo = "sha256";
+			};
+		};
+
+		ramdisk {
+			data = /incbin/("@RAMDISK_IMG@");
+			type = "ramdisk";
+			arch = "arm";
+			os = "linux";
+			compression = "none";
+			load = <0xffffff02>;
+
+			hash {
+				algo = "sha256";
+			};
+		};
+
+	};
+
+	configurations {
+		default = "conf";
+
+		conf {
+			fdt = "fdt";
+			kernel = "kernel";
+			ramdisk = "ramdisk";
+		};
+	};
+};

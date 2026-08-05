@@ -1,0 +1,79 @@
+#!/bin/busybox sh
+# shellcheck shell=dash
+
+/bin/busybox mount -t devtmpfs devtmpfs /dev
+/bin/busybox mount -t proc proc /proc
+/bin/busybox mount -t sysfs sysfs /sys
+/bin/busybox mkdir -p /sys/kernel/config
+/bin/busybox mount -t configfs configfs /sys/kernel/config
+
+PATH=/bin:/usr/bin
+export PATH
+
+GADGET=/sys/kernel/config/usb_gadget/powerfin
+CONFIG="$GADGET/configs/b.1"
+STRINGS=0x409
+
+powerfin_serial=$(awk '/^Serial[[:space:]]*:/ { print $3; exit }' /proc/cpuinfo)
+powerfin_suffix=$(printf '%s' "$powerfin_serial" | tail -c 10 | \
+	sed 's/../&:/g; s/:$//')
+[ ${#powerfin_suffix} -eq 14 ] || powerfin_suffix=00:00:00:35:06
+
+mkdir -p "$GADGET"
+echo 0x2207 >"$GADGET/idVendor"
+echo 0x0003 >"$GADGET/idProduct"
+echo 0x0310 >"$GADGET/bcdDevice"
+echo 0xEF >"$GADGET/bDeviceClass"
+echo 0x02 >"$GADGET/bDeviceSubClass"
+echo 0x01 >"$GADGET/bDeviceProtocol"
+
+mkdir -p "$GADGET/strings/$STRINGS"
+echo "${powerfin_serial:-0123456789ABCDEF}" >"$GADGET/strings/$STRINGS/serialnumber"
+echo Humpbacklab >"$GADGET/strings/$STRINGS/manufacturer"
+echo 'PowerFin Recovery' >"$GADGET/strings/$STRINGS/product"
+
+mkdir -p "$CONFIG/strings/$STRINGS"
+echo RNDIS >"$CONFIG/strings/$STRINGS/configuration"
+echo 500 >"$CONFIG/MaxPower"
+
+mkdir -p "$GADGET/functions/rndis.usb0"
+echo "02:$powerfin_suffix" >"$GADGET/functions/rndis.usb0/host_addr"
+echo "06:$powerfin_suffix" >"$GADGET/functions/rndis.usb0/dev_addr"
+ln -s "$GADGET/functions/rndis.usb0" "$CONFIG/f-rndis.usb0"
+
+# Match the Rockchip gadget's Microsoft OS descriptor setup so Windows can
+# bind its RNDIS driver without a separate recovery-only device profile.
+echo 1 >"$GADGET/os_desc/use"
+echo 0x1 >"$GADGET/os_desc/b_vendor_code"
+echo MSFT100 >"$GADGET/os_desc/qw_sign"
+ln -s "$CONFIG" "$GADGET/os_desc/b.1"
+
+set -- /sys/class/udc/*
+if [ ! -e "$1" ]; then
+	echo 'PowerFin recovery: no USB device controller found' >&2
+	exec sh </dev/console >/dev/console 2>&1
+fi
+udc=${1##*/}
+echo "$udc" >"$GADGET/UDC"
+
+retries=50
+while [ ! -e /sys/class/net/usb0 ] && [ "$retries" -gt 0 ]; do
+	retries=$((retries - 1))
+	sleep 0.1
+done
+
+if [ -e /sys/class/net/usb0 ]; then
+	ip link set usb0 up
+	ip addr add 192.168.123.100/24 dev usb0
+	udhcpd /etc/powerfin-recovery-udhcpd.conf
+else
+	echo 'PowerFin recovery: RNDIS interface was not created' >&2
+fi
+
+PFC_MODE=recovery PFC_LISTEN=0.0.0.0:8080 RUST_LOG=info \
+	penguin-flight-console >/var/log/penguin-flight-console.log 2>&1 &
+
+echo "POWERFIN_RECOVERY_READY"
+cat /proc/uptime
+
+exec sh </dev/console >/dev/console 2>&1

@@ -1,0 +1,42 @@
+#!/bin/sh
+
+PID_FILE=/run/powerfin-rndis-dnsmasq.pid
+LOG_FILE=/var/log/powerfin-rndis.log
+DNSMASQ_CONFIG=/etc/powerfin-rndis-dnsmasq.conf
+
+start_rndis()
+{
+	# Start DHCP before the host sees the RNDIS link. bind-dynamic lets dnsmasq
+	# attach when usb0 is created and avoids losing the host's first request.
+	[ -s "$PID_FILE" ] && kill "$(cat "$PID_FILE")" 2>/dev/null
+	/usr/sbin/dnsmasq --conf-file="$DNSMASQ_CONFIG" \
+		--pid-file="$PID_FILE"
+
+	# S45usbconfig creates the configfs gadget asynchronously. Wait in this
+	# background worker so USB enumeration never delays the boot-ready marker.
+	retries=100
+	while [ ! -d /sys/class/net/usb0 ]; do
+		[ "$retries" -eq 0 ] && exit 0
+		retries=$((retries - 1))
+		sleep 0.1
+	done
+
+	ip link set usb0 up
+	ip addr replace 192.168.123.100/24 dev usb0
+}
+
+case "$1" in
+start)
+	start_rndis >"$LOG_FILE" 2>&1 &
+	;;
+stop)
+	if [ -s "$PID_FILE" ]; then
+		kill "$(cat "$PID_FILE")" 2>/dev/null || true
+		rm -f "$PID_FILE"
+	fi
+	;;
+*)
+	echo "Usage: $0 {start|stop}" >&2
+	exit 1
+	;;
+esac

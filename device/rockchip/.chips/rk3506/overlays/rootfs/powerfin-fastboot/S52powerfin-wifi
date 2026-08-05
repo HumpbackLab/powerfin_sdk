@@ -1,0 +1,71 @@
+#!/bin/sh
+
+MODE_FILE=/etc/penguin-flight-console/wifi-mode
+HOSTAPD_CONF=/etc/powerfin-hostapd.conf
+DNSMASQ_CONF=/etc/powerfin-ap-dnsmasq.conf
+WPA_CONF=/etc/wpa_supplicant.conf
+HOSTAPD_PID=/run/powerfin-hostapd.pid
+DNSMASQ_PID=/run/powerfin-ap-dnsmasq.pid
+WPA_PID=/run/powerfin-wpa-supplicant.pid
+UDHCPC_PID=/run/powerfin-wifi-udhcpc.pid
+
+stop_pidfile()
+{
+	if [ -s "$1" ]; then
+		kill "$(cat "$1")" 2>/dev/null || true
+		rm -f "$1"
+	fi
+}
+
+start_wifi()
+{
+	mode=ap
+	[ ! -r "$MODE_FILE" ] || IFS= read -r mode <"$MODE_FILE"
+	if [ "$mode" = off ]; then
+		echo "PowerFin Wi-Fi disabled by configuration"
+		return 0
+	fi
+
+	tries=0
+	while [ ! -d /sys/class/net/wlan0 ]; do
+		tries=$((tries + 1))
+		[ "$tries" -lt 200 ] || return 1
+		sleep 0.1
+	done
+	ip addr flush dev wlan0
+	ip link set wlan0 up
+
+	case "$mode" in
+	ap)
+		ip addr replace 192.168.4.1/24 dev wlan0
+		dnsmasq --conf-file="$DNSMASQ_CONF" --pid-file="$DNSMASQ_PID"
+		hostapd -B -P "$HOSTAPD_PID" "$HOSTAPD_CONF"
+		;;
+	sta)
+		wpa_supplicant -B -P "$WPA_PID" -D nl80211 \
+			-i wlan0 -c "$WPA_CONF"
+		udhcpc -i wlan0 -p "$UDHCPC_PID" &
+		;;
+	*)
+		echo "Invalid Wi-Fi mode: $mode" >&2
+		return 1
+		;;
+	esac
+}
+
+stop_wifi()
+{
+	stop_pidfile "$UDHCPC_PID"
+	stop_pidfile "$WPA_PID"
+	stop_pidfile "$HOSTAPD_PID"
+	stop_pidfile "$DNSMASQ_PID"
+	ip addr flush dev wlan0 2>/dev/null || true
+	ip link set wlan0 down 2>/dev/null || true
+}
+
+case "$1" in
+start) start_wifi ;;
+stop) stop_wifi ;;
+restart) stop_wifi; start_wifi ;;
+*) echo "Usage: $0 {start|stop|restart}" >&2; exit 1 ;;
+esac
