@@ -14,6 +14,29 @@ PART=/dev/mmcblk0p2
 SYS_DISK=/sys/class/block/mmcblk0
 SYS_PART=/sys/class/block/mmcblk0p2
 RESIZED_MARKER=/.resized
+FONT_MARKER=/.at7456-font-written
+FONT_TOOL=/usr/bin/at7456e_font
+FONT_FILE=/usr/share/powerfin/betaflight.mcm
+
+write_at7456_font()
+{
+	[ -e "$FONT_MARKER" ] && return 0
+
+	if [ ! -x "$FONT_TOOL" ] || [ ! -r "$FONT_FILE" ]; then
+		echo "PowerFin: AT7456 font tool or font file is missing" >&2
+		return 1
+	fi
+
+	echo "PowerFin: writing AT7456 OSD font"
+	if "$FONT_TOOL" --yes write "$FONT_FILE"; then
+		touch "$FONT_MARKER"
+		echo "PowerFin: AT7456 OSD font written"
+		return 0
+	fi
+
+	echo "PowerFin: failed to write AT7456 OSD font; will retry next boot" >&2
+	return 1
+}
 
 grow_root_partition()
 {
@@ -56,8 +79,14 @@ grow_root_partition()
 
 case "$1" in
 	start|"")
+		font_pid=
+		if [ ! -e "$FONT_MARKER" ]; then
+			write_at7456_font &
+			font_pid=$!
+		fi
 		grow_root_partition
 		mount-helper
+		[ -z "$font_pid" ] || wait "$font_pid"
 		;;
 	restart|reload|force-reload)
 		echo "Error: argument '$1' not supported" >&2

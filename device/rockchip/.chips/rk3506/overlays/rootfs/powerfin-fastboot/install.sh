@@ -9,6 +9,11 @@ powerfin_*) ;;
 esac
 
 OVERLAY_DIR="$(dirname "$(realpath "$0")")"
+SDK_DIR="$(realpath "$OVERLAY_DIR/../../../../../../..")"
+AT7456_DIR="$SDK_DIR/tools/at7456"
+AT7456_CROSS_COMPILE="$SDK_DIR/prebuilts/gcc/linux-x86/arm/"\
+"gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/bin/"\
+"arm-none-linux-gnueabihf-"
 
 message "Installing PowerFin fastboot rootfs policy to $TARGET_DIR..."
 
@@ -43,6 +48,13 @@ install -m 0644 -D "$OVERLAY_DIR/powerfin-rndis-usbdevice.sh" \
 	"$TARGET_DIR/etc/usbdevice.d/powerfin-rndis.sh"
 install -m 0644 "$OVERLAY_DIR/powerfin-release" \
 	"$TARGET_DIR/etc/powerfin-release"
+make -C "$AT7456_DIR" \
+	CROSS_COMPILE="$AT7456_CROSS_COMPILE" \
+	BUILD_DIR="$TARGET_DIR/usr/bin"
+install -m 0644 -D "$AT7456_DIR/betaflight.mcm" \
+	"$TARGET_DIR/usr/share/powerfin/betaflight.mcm"
+install -m 0755 -D "$SDK_DIR/tools/time_bootstrap.sh" \
+	"$TARGET_DIR/root/px4/posix-configs/powerfin/time_bootstrap.sh"
 
 # Run independent post-udev services concurrently. Keep their original
 # scripts outside /etc/init.d so rcS/rcK only invoke the coordinator.

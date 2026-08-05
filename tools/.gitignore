@@ -25,3 +25,6 @@ windows/RKDevTool/RKDevTool_Release/Log
 
 # Independently versioned SDK tool.
 /penguin-flight-console/
+
+# Generated AT7456E font programmer binary.
+/at7456/build/
