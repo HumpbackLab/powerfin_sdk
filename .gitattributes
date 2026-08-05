@@ -1,0 +1,7 @@
+# The SDK root repository contains integration text files only. Binary/LFS
+# policy belongs to the component repository that owns each file.
+* text=auto
+*.sh text eol=lf
+*.md text eol=lf
+*.xml text eol=lf
+
