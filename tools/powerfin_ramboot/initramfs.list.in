@@ -20,6 +20,7 @@ file /bin/busybox @BUSYBOX@ 0755 0 0
 file /etc/powerfin-recovery-udhcpd.conf @UDHCPD_CONFIG@ 0644 0 0
 file /usr/bin/penguin-flight-console @PFC_BINARY@ 0755 0 0
 file /usr/libexec/penguin-flight-console/powerfin/board.conf @PFC_BOARD_DIR@/board.conf 0644 0 0
+file /usr/libexec/penguin-flight-console/powerfin/kernel-flash.sh @PFC_BOARD_DIR@/kernel-flash.sh 0755 0 0
 file /usr/libexec/penguin-flight-console/powerfin/sdcard-flash.sh @PFC_BOARD_DIR@/sdcard-flash.sh 0755 0 0
 slink /bin/sh busybox 0777 0 0
 slink /sbin/reboot /bin/busybox 0777 0 0

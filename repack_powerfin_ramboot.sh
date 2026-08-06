@@ -64,6 +64,7 @@ for file in "${BUSYBOX_TARBALL}" "${CROSS_COMPILE}gcc" \
 	"${MKIMAGE}" "${ZIMAGE}" "${NORMAL_DTB}" "${RECOVERY_DTB}" \
 	"${GEN_INIT_CPIO}" "${PFC_BINARY}" \
 	"${PFC_BOARD_DIR}/board.conf" \
+	"${PFC_BOARD_DIR}/kernel-flash.sh" \
 	"${PFC_BOARD_DIR}/sdcard-flash.sh"; do
 	require_file "${file}"
 done
