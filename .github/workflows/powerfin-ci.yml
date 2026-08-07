@@ -1,0 +1,167 @@
+name: PowerFin full image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: powerfin-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    env:
+      SDK_REPO_TOKEN: ${{ secrets.SDK_REPO_TOKEN }}
+      FORCE_UNSAFE_CONFIGURE: "1"
+
+    steps:
+      - name: Check private repository token
+        shell: bash
+        run: |
+          if [[ -z "${SDK_REPO_TOKEN}" ]]; then
+            echo "::error::Add an SDK_REPO_TOKEN secret with read access to the HumpbackLab private repositories."
+            exit 1
+          fi
+
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          sudo rm -rf \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/.ghcup \
+            /usr/local/lib/android \
+            /usr/share/dotnet
+          docker system prune --all --force || true
+          df -h /
+
+      - name: Install host dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            bc \
+            bison \
+            build-essential \
+            ca-certificates \
+            cpio \
+            curl \
+            device-tree-compiler \
+            dosfstools \
+            fakeroot \
+            file \
+            flex \
+            git-lfs \
+            jq \
+            libncurses-dev \
+            libssl-dev \
+            mtools \
+            ninja-build \
+            parted \
+            python3 \
+            python3-pip \
+            rsync \
+            unzip \
+            wget \
+            xz-utils \
+            zstd
+          git lfs install
+
+      - name: Install repo and Rust cross
+        shell: bash
+        run: |
+          install -d "${HOME}/.local/bin"
+          curl --fail --location \
+            https://storage.googleapis.com/git-repo-downloads/repo \
+            --output "${HOME}/.local/bin/repo"
+          chmod +x "${HOME}/.local/bin/repo"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          cargo install cross --locked
+
+      - name: Install PX4 Python dependencies
+        shell: bash
+        run: |
+          curl --fail --location \
+            https://raw.githubusercontent.com/AutopilotPi/PX4-Autopilot/zero_3w/Tools/setup/requirements.txt \
+            --output "${RUNNER_TEMP}/px4-requirements.txt"
+          python3 -m pip install \
+            --user \
+            --break-system-packages \
+            --requirement "${RUNNER_TEMP}/px4-requirements.txt"
+
+      - name: Check out SDK root
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          path: sdk
+
+      - name: Sync SDK component repositories
+        working-directory: sdk
+        shell: bash
+        run: |
+          git config --global \
+            url."https://x-access-token:${SDK_REPO_TOKEN}@github.com/".insteadOf \
+            "ssh://git@github.com/"
+          git config --global submodule.fetchJobs 8
+          repo init \
+            --manifest-url=ssh://git@github.com/HumpbackLab/manifest.git \
+            --manifest-branch=master \
+            --manifest-name=powerfin.xml \
+            --depth=1
+          repo sync --current-branch --jobs=4 --fail-fast --no-tags
+          repo manifest -r -o "${RUNNER_TEMP}/powerfin-resolved.xml"
+          if grep -q '192\.168\.10\.75' "${RUNNER_TEMP}/powerfin-resolved.xml"; then
+            echo "::error::Resolved manifest still contains the vendor intranet remote."
+            exit 1
+          fi
+
+      - name: Build complete PowerFin image
+        working-directory: sdk
+        shell: bash
+        run: |
+          ./build.sh powerfin_buildroot_spinor_defconfig
+          ./build.sh all
+
+      - name: Verify images
+        working-directory: sdk
+        shell: bash
+        run: |
+          test -s output/update/Image/update.img
+          test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
+          sha256sum \
+            output/update/Image/update.img \
+            buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img \
+            | tee powerfin-images.sha256
+
+      - name: Upload PowerFin images
+        uses: actions/upload-artifact@v4
+        with:
+          name: powerfin-images-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            sdk/output/update/Image/update.img
+            sdk/buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
+            sdk/powerfin-images.sha256
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: powerfin-build-logs-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            sdk/output/sessions/
+            sdk/buildroot/output/rockchip_powerfin/build/build-time.log
