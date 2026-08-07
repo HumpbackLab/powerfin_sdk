@@ -67,6 +67,7 @@ cd ../..
 
 ```text
 tools/penguin-flight-console/dist/penguin-flight-console
+tools/penguin-flight-console/dist/penguin-flight-console-update.tar.gz
 tools/penguin-flight-console/dist/recovery/penguin-flight-console
 ```
 
@@ -223,6 +224,15 @@ PFC 在目标文件系统中的位置：
 /usr/libexec/penguin-flight-console/powerfin/
 ```
 
+Buildroot 仍将裸二进制安装到 `/usr/bin`，并将 `boards/powerfin/*.sh` 安装到
+`/usr/libexec/penguin-flight-console/powerfin/`。网页自更新使用的完整升级包是：
+
+```text
+tools/penguin-flight-console/dist/penguin-flight-console-update.tar.gz
+```
+
+该升级包作为浏览器上传文件使用，不需要预装进根文件系统。
+
 编译后可在未打包的最终根文件系统中检查：
 
 ```bash
@@ -326,6 +336,7 @@ ls -l output/buildroot/target/root/px4/bin/px4
 | 完整 SD 卡镜像 | `buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img` | 写入 SD 卡 |
 | 压缩 SD 卡镜像 | `buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz` | 分发或保存 |
 | 正常系统 PFC 输入文件 | `tools/penguin-flight-console/dist/penguin-flight-console` | Buildroot 的 PFC 输入文件 |
+| PFC 网页自更新包 | `tools/penguin-flight-console/dist/penguin-flight-console-update.tar.gz` | 更新正常系统 PFC 及配套板级脚本 |
 | 构建日志 | `output/log/` | 最近一次构建日志 |
 
 `output/firmware/` 和 `rockdev/` 中很多文件是符号链接；排查产物来源时可使用：
