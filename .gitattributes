@@ -32,3 +32,9 @@
 /device/rockchip/common/tools/armhf/perf-6.1 filter=lfs diff=lfs merge=lfs -text
 /tools/linux/rk_sign_tool/bin/** filter=lfs diff=lfs merge=lfs -text
 /tools/linux/rk_sign_tool/rk_sign_tool filter=lfs diff=lfs merge=lfs -text
+
+# Preserve imported vendor projects byte-for-byte, including original CRLF.
+/external/alsa-config/** -text
+/external/rkscript/** -text
+/external/rktoolkit/** -text
+/external/rkwifibt-app/** -text

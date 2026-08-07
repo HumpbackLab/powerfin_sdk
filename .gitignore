@@ -7,6 +7,10 @@
 /buildroot/
 /external/*
 !/external/common_algorithm/
+!/external/alsa-config/
+!/external/rkscript/
+!/external/rktoolkit/
+!/external/rkwifibt-app/
 /hal/
 /kernel-6.1/
 /prebuilts/**
@@ -19,8 +23,7 @@
 /u-boot/
 /yocto/
 
-# Independent projects that will be added to the PowerFin manifest after their
-# remotes have been created.
+# Independent projects managed outside the SDK root repository.
 /simulation/
 /tools/penguin-flight-console/
 
