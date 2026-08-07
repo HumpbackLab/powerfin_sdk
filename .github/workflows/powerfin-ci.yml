@@ -140,6 +140,7 @@ jobs:
         shell: bash
         run: |
           ./build.sh rk3506:powerfin_buildroot_spinor_defconfig
+          ./build.sh bmake:busybox-source
           ./build.sh all
 
       - name: Verify images
