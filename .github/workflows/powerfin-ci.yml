@@ -59,19 +59,24 @@ jobs:
             curl \
             device-tree-compiler \
             dosfstools \
+            expect \
             fakeroot \
             file \
             flex \
             git-lfs \
             jq \
+            libgmp-dev \
+            libmpc-dev \
             libncurses-dev \
             libsqlite3-dev \
             libssl-dev \
+            lz4 \
             mtools \
             ninja-build \
             parted \
             python3 \
             python3-pip \
+            python-is-python3 \
             rsync \
             unzip \
             wget \
