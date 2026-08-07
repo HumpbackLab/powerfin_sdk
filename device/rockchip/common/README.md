@@ -52,18 +52,13 @@ grep '^RK_DEFCONFIG=' output/.config
 
 ## 3. 编译完整的 SPI NOR `update.img`
 
-### 3.1 首次编译前准备 PFC
+### 3.1 PFC 和 PX4 源码来源
 
-PowerFin 的 Buildroot 配置默认启用 Penguin Flight Console（PFC）。PFC 以预编译
-程序的形式进入正常根文件系统和 recovery initramfs。单独编译 Buildroot 前先生成它：
+PowerFin 的 Buildroot 配置默认启用 Penguin Flight Console（PFC）。Buildroot 从
+`HumpbackLab/penguin-flight-console` 的 `master` 分支拉取源码并调用
+`build-cross.sh`；该脚本需要 Rust `cross`，以及 Docker 或 Podman。
 
-```bash
-cd tools/penguin-flight-console
-./build-cross.sh
-cd ../..
-```
-
-该脚本需要 Rust `cross`，以及 Docker 或 Podman。生成的程序位于：
+Recovery initramfs 使用 manifest 检出的 `tools/penguin-flight-console`，其生成文件位于：
 
 ```text
 tools/penguin-flight-console/dist/penguin-flight-console
@@ -71,15 +66,9 @@ tools/penguin-flight-console/dist/penguin-flight-console-update.tar.gz
 tools/penguin-flight-console/dist/recovery/penguin-flight-console
 ```
 
-执行 `./build.sh all` 时，kernel 打包阶段也会自动调用该脚本，因此不需要重复执行。
-
-PX4 源码默认位于 SDK 同级目录：
-
-```text
-../PX4-Autopilot/
-```
-
-Buildroot 会自动用自己的交叉工具链编译 PX4 的 `humpback_powerfin` 目标。
+执行 `./build.sh all` 时，kernel 打包阶段会自动构建 recovery PFC。Buildroot 会从
+`AutopilotPi/PX4-Autopilot` 的 `zero_3w` 分支拉取最新源码，并用自己的交叉工具链
+编译 PX4 的 `humpback_powerfin` 目标。
 
 ### 3.2 完整编译
 
@@ -195,25 +184,17 @@ SPI NOR 的 `update.img` 中。Recovery PFC 是例外：它位于 NOR `boot.img`
 
 ## 7. 更新 PFC/PX4
 
-对于正常系统 PFC 和 PX4，Buildroot 使用 stamp 文件记录软件包是否已经编译。
-仅修改本地源码后再次运行
-`./build.sh buildroot`，对应软件包可能因为旧 stamp 而不重新编译。要确保最新产物
-进入根文件系统，先清理对应软件包的构建目录，再重新编译 Buildroot。
+对于正常系统 PFC 和 PX4，Buildroot 使用 stamp 文件和下载缓存记录已经处理的
+软件包。全新的 CI 工作区会获取 GitHub 分支的最新版本；本地增量构建要更新远端
+源码时，需要清理对应软件包的构建目录和下载缓存。
 
 ### 7.1 更新 SD 卡正常系统中的 PFC
 
-先重新交叉编译 PFC：
-
-```bash
-cd tools/penguin-flight-console
-./build-cross.sh
-cd ../..
-```
-
-然后强制 Buildroot 重新复制并安装 PFC：
+清理 PFC 的构建目录和下载缓存，然后重新拉取、构建并安装：
 
 ```bash
 ./build.sh bmake:penguin-flight-console-dirclean
+rm -rf buildroot/dl/penguin-flight-console
 ./build.sh buildroot
 ```
 
@@ -276,20 +257,15 @@ output/firmware/update.img
 
 ### 7.3 更新 PX4
 
-确认更新后的 PX4 源码位于：
-
-```text
-../PX4-Autopilot/
-```
-
-然后执行：
+清理 PX4 的构建目录和下载缓存，然后从 `zero_3w` 分支重新拉取最新源码：
 
 ```bash
 ./build.sh bmake:px4-powerfin-dirclean
+rm -rf buildroot/dl/px4-powerfin
 ./build.sh buildroot
 ```
 
-Buildroot 会重新复制 PX4 源码、编译 `humpback_powerfin`，并将运行环境安装到：
+Buildroot 会编译 `humpback_powerfin`，并将运行环境安装到：
 
 ```text
 /root/px4/bin/
@@ -375,11 +351,9 @@ readlink -f output/firmware/update.img
 ### 更新 PFC/PX4，并更新 SD 卡根文件系统
 
 ```bash
-cd tools/penguin-flight-console
-./build-cross.sh
-cd ../..
 ./build.sh bmake:penguin-flight-console-dirclean
 ./build.sh bmake:px4-powerfin-dirclean
+rm -rf buildroot/dl/penguin-flight-console buildroot/dl/px4-powerfin
 ./build.sh buildroot
 ```
 
