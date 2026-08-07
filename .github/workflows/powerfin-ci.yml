@@ -118,7 +118,7 @@ jobs:
         working-directory: sdk
         shell: bash
         run: |
-          ./build.sh powerfin_buildroot_spinor_defconfig
+          ./build.sh rk3506:powerfin_buildroot_spinor_defconfig
           ./build.sh all
 
       - name: Verify images
