@@ -65,6 +65,7 @@ jobs:
             git-lfs \
             jq \
             libncurses-dev \
+            libsqlite3-dev \
             libssl-dev \
             mtools \
             ninja-build \
@@ -77,6 +78,21 @@ jobs:
             xz-utils \
             zstd
           git lfs install
+
+      - name: Install Python 2 for U-Boot
+        shell: bash
+        run: |
+          curl --fail --location \
+            https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz \
+            --output "${RUNNER_TEMP}/Python-2.7.18.tgz"
+          tar -C "${RUNNER_TEMP}" -xf "${RUNNER_TEMP}/Python-2.7.18.tgz"
+          cd "${RUNNER_TEMP}/Python-2.7.18"
+          ./configure \
+            --prefix="${RUNNER_TEMP}/python2" \
+            --without-ensurepip
+          make --jobs="$(nproc)"
+          make install
+          echo "${RUNNER_TEMP}/python2/bin" >> "${GITHUB_PATH}"
 
       - name: Install repo and Rust cross
         shell: bash

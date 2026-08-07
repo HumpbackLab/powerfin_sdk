@@ -317,8 +317,9 @@ run_hooks()
 			# Ignore unrelated hooks
 			hook_check "$hook" "$1" "$2" || continue
 
-			if ! "$hook" $@; then
-				HOOK_RET=$?
+			"$hook" "$@"
+			HOOK_RET=$?
+			if [ $HOOK_RET -ne 0 ]; then
 				err_handler $HOOK_RET \
 					"${FUNCNAME[0]} $*" "$hook $*"
 				exit $HOOK_RET
