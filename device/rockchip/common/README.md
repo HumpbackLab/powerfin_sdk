@@ -67,8 +67,9 @@ tools/penguin-flight-console/dist/recovery/penguin-flight-console
 ```
 
 执行 `./build.sh all` 时，kernel 打包阶段会自动构建 recovery PFC。Buildroot 会从
-`AutopilotPi/PX4-Autopilot` 的 `zero_3w` 分支拉取最新源码，并用自己的交叉工具链
-编译 PX4 的 `humpback_powerfin` 目标。
+`AutopilotPi/PX4-Autopilot` 的最新 GitHub Release 下载
+匹配 `px4-*.zip` 的运行包，不再于 SDK 构建期间编译 PX4 源码。Release 资产名
+由 `make humpback_powerfin release` 生成，格式为 `px4-<commit>.zip`。
 
 ### 3.2 完整编译
 
@@ -185,8 +186,8 @@ SPI NOR 的 `update.img` 中。Recovery PFC 是例外：它位于 NOR `boot.img`
 ## 7. 更新 PFC/PX4
 
 对于正常系统 PFC 和 PX4，Buildroot 使用 stamp 文件和下载缓存记录已经处理的
-软件包。全新的 CI 工作区会获取 GitHub 分支的最新版本；本地增量构建要更新远端
-源码时，需要清理对应软件包的构建目录和下载缓存。
+软件包。全新的 CI 工作区会获取 GitHub 上的最新版本；本地增量构建要更新远端
+PFC 或 PX4 Release 时，需要清理对应软件包的构建目录和下载缓存。
 
 ### 7.1 更新 SD 卡正常系统中的 PFC
 
@@ -257,7 +258,7 @@ output/firmware/update.img
 
 ### 7.3 更新 PX4
 
-清理 PX4 的构建目录和下载缓存，然后从 `zero_3w` 分支重新拉取最新源码：
+清理 PX4 的构建目录和下载缓存，然后重新获取最新 Release：
 
 ```bash
 ./build.sh bmake:px4-powerfin-dirclean
@@ -265,7 +266,8 @@ rm -rf buildroot/dl/px4-powerfin
 ./build.sh buildroot
 ```
 
-Buildroot 会编译 `humpback_powerfin`，并将运行环境安装到：
+Buildroot 会从新到旧扫描 GitHub Release（包括 prerelease），解压首个 Release 中
+唯一匹配的 `px4-*.zip`，并将运行环境安装到：
 
 ```text
 /root/px4/bin/

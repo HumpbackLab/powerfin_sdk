@@ -89,17 +89,6 @@ jobs:
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
           cargo install cross --locked
 
-      - name: Install PX4 Python dependencies
-        shell: bash
-        run: |
-          curl --fail --location \
-            https://raw.githubusercontent.com/AutopilotPi/PX4-Autopilot/zero_3w/Tools/setup/requirements.txt \
-            --output "${RUNNER_TEMP}/px4-requirements.txt"
-          python3 -m pip install \
-            --user \
-            --break-system-packages \
-            --requirement "${RUNNER_TEMP}/px4-requirements.txt"
-
       - name: Check out SDK root
         uses: actions/checkout@v4
         with:
@@ -113,7 +102,6 @@ jobs:
           git config --global \
             url."https://x-access-token:${SDK_REPO_TOKEN}@github.com/".insteadOf \
             "ssh://git@github.com/"
-          git config --global submodule.fetchJobs 8
           repo init \
             --manifest-url=ssh://git@github.com/HumpbackLab/manifest.git \
             --manifest-branch=master \
