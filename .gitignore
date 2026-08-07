@@ -1,17 +1,20 @@
 # Android Repo metadata is local checkout state.
 /.repo/
 
-# Projects managed by Android Repo. The SDK root repository deliberately does
-# not track these directories; each project is committed independently and the
-# manifest records the version combination.
+# Projects managed by Android Repo, or intentionally absent from the
+# PowerFin-only checkout. The SDK root repository does not track them.
 /app/
 /buildroot/
 /external/*
 !/external/common_algorithm/
 /hal/
 /kernel-6.1/
-/prebuilts/
-/rkbin/
+/prebuilts/**
+!/prebuilts/gcc/
+!/prebuilts/gcc/linux-x86/
+!/prebuilts/gcc/linux-x86/arm/
+!/prebuilts/gcc/linux-x86/arm/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/
+!/prebuilts/gcc/linux-x86/arm/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/**
 /rtos/
 /u-boot/
 /yocto/

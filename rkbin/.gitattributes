@@ -1,0 +1,4 @@
+# This directory is a vendor firmware and host-tool payload. Keep every
+# payload file in Git LFS; keep this policy file itself as normal Git text.
+/** filter=lfs diff=lfs merge=lfs -text
+/.gitattributes -filter -diff -merge text

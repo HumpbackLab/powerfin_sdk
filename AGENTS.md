@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This tree is a Rockchip RK3506 Linux SDK composed of multiple Git projects. Major components include `kernel-6.1/` (active Linux kernel), `u-boot/`, `buildroot/`, `rkbin/`, `hal/`, `rtos/`, and `tools/`. Board configuration lives under `device/`; PowerFin device-tree work is primarily in `kernel-6.1/arch/arm/boot/dts/`. Generated images and staging output belong in `output/`, `rockdev/`, or component-specific build directories. Do not commit generated images, captures, or unpacked SDK archives unless they are intentional test fixtures.
+This tree is a PowerFin-focused Rockchip RK3506 Linux SDK composed of the root repository plus a small set of upstream Git projects. Major components include `kernel-6.1/` (active Linux kernel), `u-boot/`, `buildroot/`, `rkbin/`, and `tools/`. The root repository owns `rkbin/` and the Linux ARM toolchain under `prebuilts/` through Git LFS; unused AMP/RTOS, demo, multimedia, and security projects are not checked out. Board configuration lives under `device/`; PowerFin device-tree work is primarily in `kernel-6.1/arch/arm/boot/dts/`. Generated images and staging output belong in `output/`, `rockdev/`, or component-specific build directories. Do not commit generated images, captures, or unpacked SDK archives unless they are intentional test fixtures.
 
 ## Build, Test, and Development Commands
 
