@@ -10,8 +10,8 @@ powerfin_buildroot_spinor_defconfig
 
 SDK 由 `powerfin_sdk` 根仓库和 manifest 管理的多个组件仓库组成。根仓库保存
 `device/`、`tools/`、`external/`、`rkbin/` 等内容；manifest 再拉取 Buildroot、
-U-Boot、Linux Kernel 和 Penguin Flight Console（PFC）。因此必须先克隆根仓库，
-不能在空目录中只运行 `repo init`。
+U-Boot 和 Linux Kernel。因此必须先克隆根仓库，不能在空目录中只运行
+`repo init`。
 
 首先确认当前 GitHub 账号有权读取 `HumpbackLab` 私有仓库，并已配置 SSH key：
 
@@ -85,10 +85,10 @@ Buildroot 根文件系统保存在 SD 卡中。SPI NOR 分区表
 `device/rockchip/.chips/rk3506/parameter-powerfin-spinor.txt` 只有 `uboot`
 和 `boot` 分区。PowerFin 实际上有两份 PFC：
 
-| PFC | 所在位置 | 更新方式 |
-| --- | --- | --- |
-| 正常系统 PFC | SD 卡 Buildroot 根文件系统 | 重编 Buildroot 并重写 SD 卡镜像 |
-| Recovery PFC | SPI NOR `boot.img` 内的 recovery initramfs | 重打 `zboot.img` 和 `update.img`，再更新 NOR |
+| PFC | 所在位置 |
+| --- | --- |
+| 正常系统 PFC | SD 卡 Buildroot 根文件系统 |
+| Recovery PFC | SPI NOR `boot.img` 内的 recovery initramfs |
 
 PX4 只在 SD 卡 Buildroot 根文件系统中。`update.img` 不包含 Buildroot 根文件系统、
 正常系统 PFC 或 PX4，但它包含随 `boot.img` 打包的 recovery PFC。
@@ -113,29 +113,8 @@ grep '^RK_DEFCONFIG=' output/.config
 
 ## 3. 编译完整的 SPI NOR `update.img`
 
-### 3.1 PFC 和 PX4 源码来源
-
-PowerFin 的 Buildroot 配置默认启用 Penguin Flight Console（PFC）。Buildroot 从
-`HumpbackLab/penguin-flight-console` 的 `master` 分支拉取源码并调用
-`build-cross.sh`；该脚本需要 Rust `cross`，以及 Docker 或 Podman。
-
-Recovery initramfs 使用 manifest 检出的 `tools/penguin-flight-console`，其生成文件位于：
-
-```text
-tools/penguin-flight-console/dist/penguin-flight-console
-tools/penguin-flight-console/dist/penguin-flight-console-update.tar.gz
-tools/penguin-flight-console/dist/recovery/penguin-flight-console
-```
-
-执行 `./build.sh all` 时，kernel 打包阶段会自动构建 recovery PFC。Buildroot 会从
-`AutopilotPi/PX4-Autopilot` 的最新 GitHub Release 下载
-匹配 `px4-*.zip` 的运行包，不再于 SDK 构建期间编译 PX4 源码。Release 资产名
-由 `make humpback_powerfin release` 生成，格式为 `px4-<commit>.zip`。
-
-### 3.2 完整编译
-
 ```bash
-./build.sh powerfin_buildroot_spinor_defconfig
+./build.sh rk3506:powerfin_buildroot_spinor_defconfig
 ./build.sh all
 ```
 
@@ -240,112 +219,10 @@ buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz
 - `RECOVERY` FAT 分区；
 - Linux `rootfs` 分区。
 
-更新 Buildroot、正常系统 PFC 或 PX4 后，应重新写入上述 SD 卡镜像。它们不在
-SPI NOR 的 `update.img` 中。Recovery PFC 是例外：它位于 NOR `boot.img` 内，
-更新方法见 7.2 节。
+Buildroot 根文件系统发生变化后，应重新写入上述 SD 卡镜像；它不包含在 SPI NOR
+的 `update.img` 中。
 
-## 7. 更新 PFC/PX4
-
-对于正常系统 PFC 和 PX4，Buildroot 使用 stamp 文件和下载缓存记录已经处理的
-软件包。全新的 CI 工作区会获取 GitHub 上的最新版本；本地增量构建要更新远端
-PFC 或 PX4 Release 时，需要清理对应软件包的构建目录和下载缓存。
-
-### 7.1 更新 SD 卡正常系统中的 PFC
-
-清理 PFC 的构建目录和下载缓存，然后重新拉取、构建并安装：
-
-```bash
-./build.sh bmake:penguin-flight-console-dirclean
-rm -rf buildroot/dl/penguin-flight-console
-./build.sh buildroot
-```
-
-PFC 在目标文件系统中的位置：
-
-```text
-/usr/bin/penguin-flight-console
-/usr/libexec/penguin-flight-console/powerfin/
-```
-
-Buildroot 仍将裸二进制安装到 `/usr/bin`，并将 `boards/powerfin/*.sh` 安装到
-`/usr/libexec/penguin-flight-console/powerfin/`。网页自更新使用的完整升级包是：
-
-```text
-tools/penguin-flight-console/dist/penguin-flight-console-update.tar.gz
-```
-
-该升级包作为浏览器上传文件使用，不需要预装进根文件系统。
-
-编译后可在未打包的最终根文件系统中检查：
-
-```bash
-ls -l output/buildroot/target/usr/bin/penguin-flight-console
-```
-
-### 7.2 更新 NOR 中的 Recovery PFC
-
-Recovery PFC 不是独立的 NOR 分区文件。它被放入 recovery initramfs，再与 kernel
-和两个 DTB 一起打包成 `kernel-6.1/zboot.img`，最终作为 `boot.img` 写入 NOR 的
-`boot` 分区。
-
-PFC 代码更新后执行：
-
-```bash
-./repack_powerfin_zboot.sh
-./build.sh updateimg
-```
-
-`repack_powerfin_zboot.sh` 会自动完成以下操作：
-
-1. 调用 `tools/penguin-flight-console/build-cross.sh` 重新编译 PFC；
-2. 将 `dist/recovery/penguin-flight-console` 放入 recovery initramfs；
-3. 生成 `output/powerfin-ramboot/rootfs.cpio.gz`；
-4. 重新生成 `kernel-6.1/zboot.img`。
-
-`./build.sh updateimg` 再将新的 `zboot.img` 作为 `boot.img` 打进：
-
-```text
-output/firmware/update.img
-```
-
-最后按正常 NOR 升级流程烧写该 `update.img`。仅执行 `./build.sh updateimg` 不会
-重新编译 PFC 或重建 recovery initramfs，因此不能省略前面的重打包命令。
-
-这条流程不需要执行 Buildroot 的 `penguin-flight-console-dirclean`；该命令只负责
-更新 SD 卡正常系统中的 PFC。
-
-> 当前 `flash_zboot.sh` 会拒绝包含 ramdisk 的多配置 FIT，不要用它更新这份
-> recovery PFC；使用重新生成的 `update.img`。
-
-### 7.3 更新 PX4
-
-清理 PX4 的构建目录和下载缓存，然后重新获取最新 Release：
-
-```bash
-./build.sh bmake:px4-powerfin-dirclean
-rm -rf buildroot/dl/px4-powerfin
-./build.sh buildroot
-```
-
-Buildroot 会从新到旧扫描 GitHub Release（包括 prerelease），解压首个 Release 中
-唯一匹配的 `px4-*.zip`，并将运行环境安装到：
-
-```text
-/root/px4/bin/
-/root/px4/etc/
-/root/px4/posix-configs/
-```
-
-编译后可检查：
-
-```bash
-ls -l output/buildroot/target/root/px4/bin/px4
-```
-
-如果 PFC 和 PX4 都有更新，分别执行两个 `dirclean` 命令后，只需运行一次
-`./build.sh buildroot`。
-
-### 7.4 完全清理 Buildroot（兜底方法）
+### 完全清理 Buildroot（兜底方法）
 
 当 Buildroot 配置、工具链或多个底层依赖发生变化，软件包级清理仍不能解决问题时：
 
@@ -356,7 +233,7 @@ ls -l output/buildroot/target/root/px4/bin/px4
 
 这会删除 `buildroot/output/rockchip_powerfin/` 并完整重编根文件系统，耗时明显更长。
 
-## 8. 产物路径汇总
+## 7. 产物路径汇总
 
 | 产物 | 路径 | 用途 |
 | --- | --- | --- |
@@ -366,7 +243,6 @@ ls -l output/buildroot/target/root/px4/bin/px4
 | U-Boot 镜像 | `output/firmware/uboot.img` | SPI NOR `uboot` 分区 |
 | kernel/FIT 镜像 | `output/firmware/boot.img` | SPI NOR `boot` 分区 |
 | Recovery initramfs | `output/powerfin-ramboot/rootfs.cpio.gz` | 包含 NOR recovery PFC |
-| Recovery PFC 输入文件 | `tools/penguin-flight-console/dist/recovery/penguin-flight-console` | 打包进 recovery initramfs |
 | kernel 原始镜像 | `kernel-6.1/arch/arm/boot/zImage` | Linux zImage |
 | PowerFin NOR DTB | `kernel-6.1/arch/arm/boot/dts/rk3506-powerfin-spinor.dtb` | 设备树二进制 |
 | Buildroot 输出目录 | `buildroot/output/rockchip_powerfin/` | Buildroot 编译缓存、工具链和目标目录 |
@@ -374,8 +250,6 @@ ls -l output/buildroot/target/root/px4/bin/px4
 | rootfs 镜像 | `buildroot/output/rockchip_powerfin/images/rootfs.ext2` | SD 卡 rootfs 分区内容；`rootfs.ext4` 是其链接 |
 | 完整 SD 卡镜像 | `buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img` | 写入 SD 卡 |
 | 压缩 SD 卡镜像 | `buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz` | 分发或保存 |
-| 正常系统 PFC 输入文件 | `tools/penguin-flight-console/dist/penguin-flight-console` | Buildroot 的 PFC 输入文件 |
-| PFC 网页自更新包 | `tools/penguin-flight-console/dist/penguin-flight-console-update.tar.gz` | 更新正常系统 PFC 及配套板级脚本 |
 | 构建日志 | `output/log/` | 最近一次构建日志 |
 
 `output/firmware/` 和 `rockdev/` 中很多文件是符号链接；排查产物来源时可使用：
@@ -386,7 +260,7 @@ readlink -f output/firmware/uboot.img
 readlink -f output/firmware/update.img
 ```
 
-## 9. 常用工作流
+## 8. 常用工作流
 
 ### 修改 kernel/DTS，并更新 SPI NOR
 
@@ -400,28 +274,4 @@ readlink -f output/firmware/update.img
 ```bash
 ./repack_powerfin_zboot.sh --build-dtb
 ./build.sh updateimg
-```
-
-### 只更新 NOR 中的 Recovery PFC
-
-```bash
-./repack_powerfin_zboot.sh
-./build.sh updateimg
-```
-
-完成后按正常 NOR 升级流程烧写 `output/firmware/update.img`。
-
-### 更新 PFC/PX4，并更新 SD 卡根文件系统
-
-```bash
-./build.sh bmake:penguin-flight-console-dirclean
-./build.sh bmake:px4-powerfin-dirclean
-rm -rf buildroot/dl/penguin-flight-console buildroot/dl/px4-powerfin
-./build.sh buildroot
-```
-
-完成后写入：
-
-```text
-buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
 ```
