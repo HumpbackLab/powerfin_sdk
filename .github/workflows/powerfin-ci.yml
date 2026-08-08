@@ -99,7 +99,7 @@ jobs:
           make install
           echo "${RUNNER_TEMP}/python2/bin" >> "${GITHUB_PATH}"
 
-      - name: Install repo and Rust cross
+      - name: Install repo
         shell: bash
         run: |
           install -d "${HOME}/.local/bin"
@@ -108,7 +108,6 @@ jobs:
             --output "${HOME}/.local/bin/repo"
           chmod +x "${HOME}/.local/bin/repo"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-          cargo install cross --locked
 
       - name: Check out SDK root
         uses: actions/checkout@v4

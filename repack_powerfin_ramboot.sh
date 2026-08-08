@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KERNEL_DIR="${ROOT_DIR}/kernel-6.1"
 BUSYBOX_VERSION="1.36.1"
 BUSYBOX_TARBALL="${ROOT_DIR}/buildroot/dl/busybox/busybox-${BUSYBOX_VERSION}.tar.bz2"
+PFC_RELEASE_CONFIG="${ROOT_DIR}/buildroot/package/rockchip/penguin-flight-console/pfc-release.conf"
+PFC_HASH_FILE="${ROOT_DIR}/buildroot/package/rockchip/penguin-flight-console/penguin-flight-console.hash"
 TOOLCHAIN_DIR="${ROOT_DIR}/prebuilts/gcc/linux-x86/arm/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/bin"
 CROSS_COMPILE="${TOOLCHAIN_DIR}/arm-none-linux-gnueabihf-"
 TOOLS_DIR="${ROOT_DIR}/tools/powerfin_ramboot"
@@ -29,10 +31,35 @@ RECOVERY_DTB="${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-ramboot.dtb"
 GEN_INIT_CPIO="${KERNEL_DIR}/usr/gen_init_cpio"
 OUTPUT_IMG="${OUTPUT_DIR}/powerfin-boot.itb"
 BOOT_PARTITION_SIZE=$((0x007f0000))
-PFC_RECOVERY_DIR="${ROOT_DIR}/tools/penguin-flight-console/dist/recovery"
-PFC_BINARY="${PFC_RECOVERY_DIR}/penguin-flight-console"
-PFC_BOARD_DIR="${PFC_RECOVERY_DIR}/boards/powerfin"
-PFC_BUILD_SCRIPT="${ROOT_DIR}/tools/penguin-flight-console/build-cross.sh"
+
+if [[ ! -f "${PFC_RELEASE_CONFIG}" ]]; then
+	echo "missing PFC release config: ${PFC_RELEASE_CONFIG}" >&2
+	exit 1
+fi
+if [[ ! -f "${PFC_HASH_FILE}" ]]; then
+	echo "missing PFC hash file: ${PFC_HASH_FILE}" >&2
+	exit 1
+fi
+
+# pfc-release.conf intentionally uses syntax accepted by both shell and make.
+# shellcheck source=/dev/null
+source "${PFC_RELEASE_CONFIG}"
+: "${PFC_RELEASE_VERSION:?missing PFC_RELEASE_VERSION}"
+: "${PFC_RELEASE_SOURCE:?missing PFC_RELEASE_SOURCE}"
+: "${PFC_RELEASE_SITE:?missing PFC_RELEASE_SITE}"
+
+PFC_RELEASE_SHA256="$(awk -v source="${PFC_RELEASE_SOURCE}" \
+	'$1 == "sha256" && $3 == source { print $2 }' "${PFC_HASH_FILE}")"
+if [[ ! "${PFC_RELEASE_SHA256}" =~ ^[[:xdigit:]]{64}$ ]]; then
+	echo "missing or invalid PFC release SHA256 in ${PFC_HASH_FILE}" >&2
+	exit 1
+fi
+
+PFC_RELEASE_URL="${PFC_RELEASE_SITE}/${PFC_RELEASE_SOURCE}"
+PFC_TARBALL="${ROOT_DIR}/buildroot/dl/penguin-flight-console/${PFC_RELEASE_SOURCE}"
+PFC_RELEASE_DIR="${BUILD_DIR}/pfc-${PFC_RELEASE_VERSION}-${PFC_RELEASE_SHA256:0:16}"
+PFC_BINARY="${PFC_RELEASE_DIR}/penguin-flight-console"
+PFC_BOARD_DIR="${PFC_RELEASE_DIR}"
 
 if [[ ${1:-} == "--output" ]]; then
 	OUTPUT_IMG="${2:?missing output path}"
@@ -44,12 +71,56 @@ if (($#)); then
 	exit 1
 fi
 
-if [[ ! -x "${PFC_BUILD_SCRIPT}" ]]; then
-	echo "missing executable: ${PFC_BUILD_SCRIPT}" >&2
-	exit 1
-fi
+verify_pfc_tarball() {
+	echo "${PFC_RELEASE_SHA256}  ${PFC_TARBALL}" | sha256sum -c - >/dev/null 2>&1
+}
 
-"${PFC_BUILD_SCRIPT}"
+fetch_pfc_release() {
+	local download_tmp
+
+	if verify_pfc_tarball; then
+		return
+	fi
+
+	if ! command -v curl >/dev/null 2>&1; then
+		echo "curl is required to download the PFC release" >&2
+		exit 1
+	fi
+
+	mkdir -p "$(dirname "${PFC_TARBALL}")"
+	download_tmp="$(mktemp "${PFC_TARBALL}.tmp.XXXXXX")"
+	if ! curl --fail --location --retry 3 \
+		"${PFC_RELEASE_URL}" --output "${download_tmp}"; then
+		rm -f -- "${download_tmp}"
+		exit 1
+	fi
+	if ! echo "${PFC_RELEASE_SHA256}  ${download_tmp}" | sha256sum -c -; then
+		rm -f -- "${download_tmp}"
+		exit 1
+	fi
+	mv -f -- "${download_tmp}" "${PFC_TARBALL}"
+}
+
+extract_pfc_release() {
+	local extract_tmp
+
+	if [[ ! -d "${PFC_RELEASE_DIR}" ]]; then
+		mkdir -p "${BUILD_DIR}"
+		extract_tmp="$(mktemp -d "${BUILD_DIR}/.pfc-release.XXXXXX")"
+		if ! tar --no-same-owner -xzf "${PFC_TARBALL}" -C "${extract_tmp}"; then
+			rm -rf -- "${extract_tmp}"
+			exit 1
+		fi
+		mv -- "${extract_tmp}" "${PFC_RELEASE_DIR}"
+	fi
+
+	(cd "${PFC_RELEASE_DIR}" && sha256sum -c SHA256SUMS)
+}
+
+mkdir -p "${BUILD_DIR}" "${OUTPUT_DIR}"
+mkdir -p "$(dirname "${OUTPUT_IMG}")"
+fetch_pfc_release
+extract_pfc_release
 
 require_file() {
 	if [[ ! -f "$1" ]]; then
@@ -64,8 +135,8 @@ for file in "${BUSYBOX_TARBALL}" "${CROSS_COMPILE}gcc" \
 	"${MKIMAGE}" "${ZIMAGE}" "${NORMAL_DTB}" "${RECOVERY_DTB}" \
 	"${GEN_INIT_CPIO}" "${PFC_BINARY}" \
 	"${PFC_BOARD_DIR}/board.conf" \
-	"${PFC_BOARD_DIR}/kernel-flash.sh" \
-	"${PFC_BOARD_DIR}/sdcard-flash.sh"; do
+	"${PFC_BOARD_DIR}/scripts/kernel-flash.sh" \
+	"${PFC_BOARD_DIR}/scripts/sdcard-flash.sh"; do
 	require_file "${file}"
 done
 
@@ -73,9 +144,6 @@ if ! grep -qx 'CONFIG_RD_GZIP=y' "${KERNEL_DIR}/.config"; then
 	echo "kernel must enable CONFIG_RD_GZIP=y" >&2
 	exit 1
 fi
-
-mkdir -p "${BUILD_DIR}" "${OUTPUT_DIR}"
-mkdir -p "$(dirname "${OUTPUT_IMG}")"
 
 if [[ ! -d "${BUSYBOX_SRC}" ]]; then
 	tar -xf "${BUSYBOX_TARBALL}" -C "${BUILD_DIR}"
