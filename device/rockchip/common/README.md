@@ -6,6 +6,67 @@
 powerfin_buildroot_spinor_defconfig
 ```
 
+## 0. 从零拉取 SDK
+
+SDK 由 `powerfin_sdk` 根仓库和 manifest 管理的多个组件仓库组成。根仓库保存
+`device/`、`tools/`、`external/`、`rkbin/` 等内容；manifest 再拉取 Buildroot、
+U-Boot、Linux Kernel 和 Penguin Flight Console（PFC）。因此必须先克隆根仓库，
+不能在空目录中只运行 `repo init`。
+
+首先确认当前 GitHub 账号有权读取 `HumpbackLab` 私有仓库，并已配置 SSH key：
+
+```bash
+ssh -T git@github.com
+```
+
+然后安装 Git LFS 和 `repo`。以下命令适用于 Ubuntu/Debian：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git git-lfs
+
+mkdir -p "${HOME}/.local/bin"
+curl -fL https://storage.googleapis.com/git-repo-downloads/repo \
+  -o "${HOME}/.local/bin/repo"
+chmod +x "${HOME}/.local/bin/repo"
+export PATH="${HOME}/.local/bin:${PATH}"
+
+git lfs install
+repo version
+```
+
+建议将 `export PATH="${HOME}/.local/bin:${PATH}"` 加入 `~/.bashrc`。从空目录拉取
+完整 SDK：
+
+```bash
+git clone git@github.com:HumpbackLab/powerfin_sdk.git rk3506_sdk
+cd rk3506_sdk
+git lfs pull
+
+repo init \
+  --manifest-url=ssh://git@github.com/HumpbackLab/manifest.git \
+  --manifest-branch=master \
+  --manifest-name=powerfin.xml \
+  --depth=1
+repo sync --current-branch --jobs=4 --fail-fast --no-tags
+```
+
+同步后可检查各仓库状态，或导出当前所有仓库对应的精确提交：
+
+```bash
+repo status
+repo manifest -r -o powerfin-resolved.xml
+```
+
+`powerfin-resolved.xml` 只用于排查版本，不应提交。更新已有工作区时，先用
+`repo status` 确认没有需要保留的未提交修改，再执行：
+
+```bash
+git pull --ff-only
+repo sync --current-branch --jobs=4 --fail-fast --no-tags
+git lfs pull
+```
+
 所有命令均在 SDK 根目录执行：
 
 ```bash
@@ -37,7 +98,7 @@ PX4 只在 SD 卡 Buildroot 根文件系统中。`update.img` 不包含 Buildroo
 首次编译、切换过其他板型，或者删除过 `output/` 后，先执行：
 
 ```bash
-./build.sh powerfin_buildroot_spinor_defconfig
+./build.sh rk3506:powerfin_buildroot_spinor_defconfig
 ```
 
 可用下面的命令确认当前配置：
