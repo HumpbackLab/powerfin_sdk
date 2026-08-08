@@ -8,17 +8,6 @@ powerfin_buildroot_spinor_defconfig
 
 ## 0. 从零拉取 SDK
 
-SDK 由 `powerfin_sdk` 根仓库和 manifest 管理的多个组件仓库组成。根仓库保存
-`device/`、`tools/`、`external/`、`rkbin/` 等内容；manifest 再拉取 Buildroot、
-U-Boot 和 Linux Kernel。因此必须先克隆根仓库，不能在空目录中只运行
-`repo init`。
-
-首先确认当前 GitHub 账号有权读取 `HumpbackLab` 私有仓库，并已配置 SSH key：
-
-```bash
-ssh -T git@github.com
-```
-
 然后安装 Git LFS 和 `repo`。以下命令适用于 Ubuntu/Debian：
 
 ```bash
@@ -39,12 +28,12 @@ repo version
 完整 SDK：
 
 ```bash
-git clone git@github.com:HumpbackLab/powerfin_sdk.git rk3506_sdk
+git clone https://github.com/HumpbackLab/powerfin_sdk.git rk3506_sdk
 cd rk3506_sdk
 git lfs pull
 
 repo init \
-  --manifest-url=ssh://git@github.com/HumpbackLab/manifest.git \
+  --manifest-url=https://github.com/HumpbackLab/manifest.git \
   --manifest-branch=master \
   --manifest-name=powerfin.xml \
   --depth=1

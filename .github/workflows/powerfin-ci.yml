@@ -22,18 +22,9 @@ jobs:
     timeout-minutes: 360
 
     env:
-      SDK_REPO_TOKEN: ${{ secrets.SDK_REPO_TOKEN }}
       FORCE_UNSAFE_CONFIGURE: "1"
 
     steps:
-      - name: Check private repository token
-        shell: bash
-        run: |
-          if [[ -z "${SDK_REPO_TOKEN}" ]]; then
-            echo "::error::Add an SDK_REPO_TOKEN secret with read access to the HumpbackLab private repositories."
-            exit 1
-          fi
-
       - name: Free runner disk space
         shell: bash
         run: |
@@ -119,11 +110,8 @@ jobs:
         working-directory: sdk
         shell: bash
         run: |
-          git config --global \
-            url."https://x-access-token:${SDK_REPO_TOKEN}@github.com/".insteadOf \
-            "ssh://git@github.com/"
           repo init \
-            --manifest-url=ssh://git@github.com/HumpbackLab/manifest.git \
+            --manifest-url=https://github.com/HumpbackLab/manifest.git \
             --manifest-branch=master \
             --manifest-name=powerfin.xml \
             --depth=1
