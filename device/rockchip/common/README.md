@@ -251,6 +251,24 @@ readlink -f output/firmware/update.img
 
 ## 8. 常用工作流
 
+### 手动触发完整镜像发布
+
+GitHub Actions 中的 `PowerFin release` 工作流只接受手动触发。它会从空工作区同步
+manifest 中的全部仓库，完整编译 PowerFin SPI NOR 配置，并在
+`ncer/powerfin_sdk` 创建 Gitee Release。Release 标题为工作流触发时的北京时间，
+附件包括：
+
+- `powerfin-sdcard.img.gz`：完整 SD 卡镜像。Gitee 社区版附件单文件上限为
+  100 MB，因此发布压缩镜像，写卡前需先解压；
+- `zboot.img`：包含 kernel、正常/Recovery DTB 和 Recovery PFC 的 SPI NOR
+  `boot` 分区镜像；
+- `SHA256SUMS`：上述两个文件的 SHA256。
+
+发布前需在 GitHub 仓库的 `Settings` → `Secrets and variables` → `Actions` 中配置
+`GITEE_ACCESS_TOKEN`，该 Gitee 私人令牌必须能够向 `ncer/powerfin_sdk` 创建
+Release 并上传附件。然后在 `Actions` → `PowerFin release` 中点击
+`Run workflow`。
+
 ### 修改 kernel/DTS，并更新 SPI NOR
 
 ```bash

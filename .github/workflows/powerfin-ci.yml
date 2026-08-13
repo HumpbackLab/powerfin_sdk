@@ -1,20 +1,15 @@
-name: PowerFin full image
+name: PowerFin release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
-  group: powerfin-image-${{ github.ref }}
-  cancel-in-progress: true
+  group: powerfin-release
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -23,8 +18,17 @@ jobs:
 
     env:
       FORCE_UNSAFE_CONFIGURE: "1"
+      GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
 
     steps:
+      - name: Check Gitee release token
+        shell: bash
+        run: |
+          if [[ -z "${GITEE_ACCESS_TOKEN}" ]]; then
+            echo "::error::Add a GITEE_ACCESS_TOKEN repository secret with write access to ncer/powerfin_sdk."
+            exit 1
+          fi
+
       - name: Free runner disk space
         shell: bash
         run: |
@@ -100,6 +104,24 @@ jobs:
           chmod +x "${HOME}/.local/bin/repo"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
+      - name: Resolve release timestamp
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_json="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
+          triggered_at="$(jq --exit-status --raw-output '.created_at' <<<"${run_json}")"
+          release_title="$(TZ=Asia/Shanghai date --date="${triggered_at}" '+%Y-%m-%d %H:%M:%S')"
+          release_stamp="$(TZ=Asia/Shanghai date --date="${triggered_at}" '+%Y%m%d-%H%M%S')"
+          {
+            echo "GITEE_RELEASE_TITLE=${release_title}"
+            echo "GITEE_RELEASE_TAG=powerfin-${release_stamp}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            echo "GITHUB_TRIGGERED_AT=${triggered_at}"
+          } >> "${GITHUB_ENV}"
+
       - name: Check out SDK root
         uses: actions/checkout@v4
         with:
@@ -134,23 +156,39 @@ jobs:
         working-directory: sdk
         shell: bash
         run: |
-          test -s output/update/Image/update.img
+          test -s kernel-6.1/zboot.img
           test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
-          sha256sum \
-            output/update/Image/update.img \
-            buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img \
-            | tee powerfin-images.sha256
+          test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz
+          install -d release
+          install -m 0644 \
+            kernel-6.1/zboot.img \
+            release/zboot.img
+          install -m 0644 \
+            buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz \
+            release/powerfin-sdcard.img.gz
+          (
+            cd release
+            sha256sum powerfin-sdcard.img.gz zboot.img > SHA256SUMS
+          )
 
       - name: Upload PowerFin images
         uses: actions/upload-artifact@v4
         with:
-          name: powerfin-images-${{ github.sha }}
+          name: powerfin-images-${{ github.run_id }}-${{ github.run_attempt }}
           retention-days: 7
           if-no-files-found: error
           path: |
-            sdk/output/update/Image/update.img
-            sdk/buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
-            sdk/powerfin-images.sha256
+            sdk/release/powerfin-sdcard.img.gz
+            sdk/release/zboot.img
+            sdk/release/SHA256SUMS
+
+      - name: Publish Gitee release
+        working-directory: sdk
+        shell: bash
+        env:
+          GITEE_OWNER: ncer
+          GITEE_REPO: powerfin_sdk
+        run: .github/scripts/publish-gitee-release.sh release
 
       - name: Upload build logs on failure
         if: failure()
