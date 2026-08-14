@@ -366,8 +366,29 @@ QGC 中的大多数 PX4 参数会在修改时自动保存。完成全部配置�
 2. 保持“强制模式”未勾选，点击“烧写内核”。
 3. 校验成功后点击“重启设备”。
 
-
-
 == 重启设备
 
 右上角“重启设备”会同时重启 Linux 和 PX4。USB 网络会暂时断开，RNDIS 恢复后刷新控制台即可。
+
+= 救砖
+== Recovery 模式救砖
+如果文件系统损坏，无法启动 PX4 或 Linux，或者想重新烧写SD卡。可以使用Recovery模式救砖。
+
+- 按住REC按键(LED旁边那个）接入USB，即可进入Recovery模式。
+
+== 全砖模式
+如果不慎破坏了flash中的数据，导致无法进入Recovery模式。可以使用全砖模式救砖。
+
+- 按住MSK按键接入USB，即可进入瑞芯微芯片的maskrom模式。此时电脑会识别一个USB设备，使用rkdeveloptool工具烧写update.img即可。
+
+= 镜像下载
+
+基础设施镜像:
+https://gitee.com/ncer/powerfin_sdk/releases
+
+各个产物：
+- powerfin-sdcard.img.gz (SD卡镜像)
+- zboot.img (内核镜像)
+- update.img (全砖模式镜像)
+
+PX4升级包:https://github.com/HumpbackLab/PX4-Autopilot/releases
