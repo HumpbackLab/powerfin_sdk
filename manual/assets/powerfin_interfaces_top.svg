@@ -6,7 +6,7 @@
 <image xlink:href="manual/powerfin_top.png" x="1000" y="850" width="2200" height="2229"/>
 
 <!-- top ports -->
-<g transform="translate(650 240)"><rect class="port" width="840" height="370"/><text class="head" x="420" y="90" text-anchor="middle">I2C1</text><path d="M0 125H840M210 125V370M420 125V370M630 125V370" stroke="#111" stroke-width="8"/><text class="pin" fill="#3970a8" x="105" y="275">SDA</text><text class="pin" fill="#3970a8" x="315" y="245">SCL</text><text class="pin" fill="#3970a8" x="315" y="315">(CK)</text><text class="pin" fill="#111111" x="525" y="275">GND</text><text class="pin" fill="#d52b2b" x="735" y="275">5V</text></g>
+<g transform="translate(650 240)"><rect class="port" width="840" height="370"/><text class="head" x="420" y="90" text-anchor="middle">I2C1</text><path d="M0 125H840M210 125V370M420 125V370M630 125V370" stroke="#111" stroke-width="8"/><text class="pin" fill="#3970a8" x="105" y="245">SCL</text><text class="pin" fill="#3970a8" x="105" y="315">(CK)</text><text class="pin" fill="#3970a8" x="315" y="275">SDA</text><text class="pin" fill="#111111" x="525" y="275">GND</text><text class="pin" fill="#d52b2b" x="735" y="275">5V</text></g>
 <path class="dash" d="M1070 610L1500 930"/>
 <g transform="translate(1680 240)"><rect class="port" width="840" height="370"/><text class="head" x="420" y="90" text-anchor="middle">UART1</text><path d="M0 125H840M210 125V370M420 125V370M630 125V370" stroke="#111" stroke-width="8"/><text class="pin" fill="#3970a8" x="105" y="275">TX</text><text class="pin" fill="#3970a8" x="315" y="275">RX</text><text class="pin" fill="#111111" x="525" y="275">GND</text><text class="pin" fill="#d52b2b" x="735" y="275">5V</text></g>
 <path class="dash" d="M2100 610L2070 930"/>
