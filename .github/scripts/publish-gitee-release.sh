@@ -15,6 +15,7 @@ release_dir="${1:?usage: publish-gitee-release.sh RELEASE_DIR}"
 release_api="https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases"
 release_files=(
 	"${release_dir}/powerfin-sdcard.img.gz"
+	"${release_dir}/update.img"
 	"${release_dir}/zboot.img"
 	"${release_dir}/SHA256SUMS"
 )
@@ -33,7 +34,8 @@ GitHub run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID
 Triggered at: ${GITHUB_TRIGGERED_AT} (UTC)
 Release title timezone: Asia/Shanghai
 
-The SD-card image is gzip-compressed. Decompress powerfin-sdcard.img.gz before writing it to an SD card."
+The SD-card image is gzip-compressed. Decompress powerfin-sdcard.img.gz before writing it to an SD card.
+update.img is the complete SPI NOR upgrade image."
 
 release_json="$(curl --fail-with-body --silent --show-error --retry 3 \
 	--request POST \

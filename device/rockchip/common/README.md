@@ -260,9 +260,10 @@ manifest 中的全部仓库，完整编译 PowerFin SPI NOR 配置，并在
 
 - `powerfin-sdcard.img.gz`：完整 SD 卡镜像。Gitee 社区版附件单文件上限为
   100 MB，因此发布压缩镜像，写卡前需先解压；
+- `update.img`：完整 SPI NOR 升级镜像，包含 Loader、U-Boot 和 boot；
 - `zboot.img`：包含 kernel、正常/Recovery DTB 和 Recovery PFC 的 SPI NOR
   `boot` 分区镜像；
-- `SHA256SUMS`：上述两个文件的 SHA256。
+- `SHA256SUMS`：上述三个镜像文件的 SHA256。
 
 发布前需在 GitHub 仓库的 `Settings` → `Secrets and variables` → `Actions` 中配置
 `GITEE_ACCESS_TOKEN`，该 Gitee 私人令牌必须能够向 `ncer/powerfin_sdk` 创建

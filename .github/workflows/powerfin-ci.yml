@@ -157,6 +157,7 @@ jobs:
         shell: bash
         run: |
           test -s kernel-6.1/zboot.img
+          test -s output/firmware/update.img
           test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
           test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz
           install -d release
@@ -164,11 +165,14 @@ jobs:
             kernel-6.1/zboot.img \
             release/zboot.img
           install -m 0644 \
+            output/firmware/update.img \
+            release/update.img
+          install -m 0644 \
             buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz \
             release/powerfin-sdcard.img.gz
           (
             cd release
-            sha256sum powerfin-sdcard.img.gz zboot.img > SHA256SUMS
+            sha256sum powerfin-sdcard.img.gz update.img zboot.img > SHA256SUMS
           )
 
       - name: Upload PowerFin images
@@ -179,6 +183,7 @@ jobs:
           if-no-files-found: error
           path: |
             sdk/release/powerfin-sdcard.img.gz
+            sdk/release/update.img
             sdk/release/zboot.img
             sdk/release/SHA256SUMS
 
