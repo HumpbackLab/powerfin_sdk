@@ -12,12 +12,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  preflight:
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 10
+
+    outputs:
+      release_title: ${{ steps.release.outputs.title }}
+      release_tag: ${{ steps.release.outputs.tag }}
+      triggered_at: ${{ steps.release.outputs.triggered_at }}
 
     env:
-      FORCE_UNSAFE_CONFIGURE: "1"
       GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
 
     steps:
@@ -29,6 +33,41 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve release timestamp
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_json="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
+          triggered_at="$(jq --exit-status --raw-output '.created_at' <<<"${run_json}")"
+          release_title="$(TZ=Asia/Shanghai date --date="${triggered_at}" '+%Y-%m-%d %H:%M:%S')"
+          release_stamp="$(TZ=Asia/Shanghai date --date="${triggered_at}" '+%Y%m%d-%H%M%S')"
+          {
+            echo "title=${release_title}"
+            echo "tag=powerfin-${release_stamp}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            echo "triggered_at=${triggered_at}"
+          } >> "${GITHUB_OUTPUT}"
+
+  build-components:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - buildroot
+          - firmware
+
+    env:
+      FORCE_UNSAFE_CONFIGURE: "1"
+
+    steps:
       - name: Free runner disk space
         shell: bash
         run: |
@@ -80,6 +119,7 @@ jobs:
           git lfs install
 
       - name: Install Python 2 for U-Boot
+        if: matrix.component == 'firmware'
         shell: bash
         run: |
           curl --fail --location \
@@ -104,24 +144,6 @@ jobs:
           chmod +x "${HOME}/.local/bin/repo"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
-      - name: Resolve release timestamp
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          run_json="$(curl --fail-with-body --silent --show-error \
-            --header "Authorization: Bearer ${GH_TOKEN}" \
-            --header "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
-          triggered_at="$(jq --exit-status --raw-output '.created_at' <<<"${run_json}")"
-          release_title="$(TZ=Asia/Shanghai date --date="${triggered_at}" '+%Y-%m-%d %H:%M:%S')"
-          release_stamp="$(TZ=Asia/Shanghai date --date="${triggered_at}" '+%Y%m%d-%H%M%S')"
-          {
-            echo "GITEE_RELEASE_TITLE=${release_title}"
-            echo "GITEE_RELEASE_TAG=powerfin-${release_stamp}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-            echo "GITHUB_TRIGGERED_AT=${triggered_at}"
-          } >> "${GITHUB_ENV}"
-
       - name: Check out SDK root
         uses: actions/checkout@v4
         with:
@@ -144,32 +166,110 @@ jobs:
             exit 1
           fi
 
-      - name: Build complete PowerFin image
+      - name: Select PowerFin configuration
         working-directory: sdk
         shell: bash
-        run: |
-          ./build.sh rk3506:powerfin_buildroot_spinor_defconfig
-          ./build.sh bmake:busybox-source
-          ./build.sh all
+        run: ./build.sh rk3506:powerfin_buildroot_spinor_defconfig
 
-      - name: Verify images
+      - name: Fetch BusyBox source for ramboot packaging
+        working-directory: sdk
+        shell: bash
+        run: ./build.sh bmake:busybox-source
+
+      - name: Build ${{ matrix.component }}
         working-directory: sdk
         shell: bash
         run: |
-          test -s kernel-6.1/zboot.img
-          test -s output/firmware/update.img
-          test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
-          test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz
-          install -d release
-          install -m 0644 \
-            kernel-6.1/zboot.img \
-            release/zboot.img
-          install -m 0644 \
-            output/firmware/update.img \
-            release/update.img
-          install -m 0644 \
-            buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz \
-            release/powerfin-sdcard.img.gz
+          case "${{ matrix.component }}" in
+            buildroot)
+              ./build.sh buildroot
+              ;;
+            firmware)
+              ./build.sh loader
+              ./build.sh kernel
+              ./build.sh firmware
+              ;;
+          esac
+
+      - name: Verify ${{ matrix.component }} outputs
+        working-directory: sdk
+        shell: bash
+        run: |
+          install -d release-component
+          case "${{ matrix.component }}" in
+            buildroot)
+              test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
+              test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz
+              install -m 0644 \
+                buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz \
+                release-component/powerfin-sdcard.img.gz
+              ;;
+            firmware)
+              test -s kernel-6.1/zboot.img
+              test -s output/firmware/update.img
+              install -m 0644 kernel-6.1/zboot.img release-component/zboot.img
+              install -m 0644 output/firmware/update.img release-component/update.img
+              ;;
+          esac
+
+      - name: Upload ${{ matrix.component }} outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: powerfin-${{ matrix.component }}-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: sdk/release-component/
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: powerfin-${{ matrix.component }}-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            sdk/output/sessions/
+            sdk/buildroot/output/rockchip_powerfin/build/build-time.log
+
+  release:
+    needs:
+      - preflight
+      - build-components
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    env:
+      GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
+      GITEE_RELEASE_TITLE: ${{ needs.preflight.outputs.release_title }}
+      GITEE_RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+      GITHUB_TRIGGERED_AT: ${{ needs.preflight.outputs.triggered_at }}
+
+    steps:
+      - name: Check out release scripts
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+          path: sdk
+
+      - name: Download Buildroot image
+        uses: actions/download-artifact@v4
+        with:
+          name: powerfin-buildroot-${{ github.run_id }}-${{ github.run_attempt }}
+          path: sdk/release
+
+      - name: Download firmware images
+        uses: actions/download-artifact@v4
+        with:
+          name: powerfin-firmware-${{ github.run_id }}-${{ github.run_attempt }}
+          path: sdk/release
+
+      - name: Verify release images
+        working-directory: sdk
+        shell: bash
+        run: |
+          test -s release/powerfin-sdcard.img.gz
+          test -s release/update.img
+          test -s release/zboot.img
           (
             cd release
             sha256sum powerfin-sdcard.img.gz update.img zboot.img > SHA256SUMS
@@ -194,14 +294,3 @@ jobs:
           GITEE_OWNER: ncer
           GITEE_REPO: powerfin_sdk
         run: .github/scripts/publish-gitee-release.sh release
-
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: powerfin-build-logs-${{ github.run_id }}
-          retention-days: 7
-          if-no-files-found: ignore
-          path: |
-            sdk/output/sessions/
-            sdk/buildroot/output/rockchip_powerfin/build/build-time.log
