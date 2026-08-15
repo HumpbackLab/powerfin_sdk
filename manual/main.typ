@@ -392,3 +392,7 @@ https://gitee.com/ncer/powerfin_sdk/releases
 - update.img (全砖模式镜像)
 
 PX4升级包:https://github.com/HumpbackLab/PX4-Autopilot/releases
+
+= 内测版已知问题
+- 无电压回传，需要自备BB响防止电池过放！
+- BlheliS 的BlueJay固件不支持转速回传
