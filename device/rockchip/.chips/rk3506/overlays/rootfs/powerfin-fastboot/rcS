@@ -10,10 +10,10 @@ init_stamp()
 	printf '[init %s] %s %s\n' "$init_uptime" "$1" "$2"
 }
 
-# Start all init scripts in numerical order and expose the duration of every
-# script on the console. This instrumentation can be removed after tuning.
-for i in /etc/init.d/S??*; do
-	[ ! -f "$i" ] && continue
+run_init_script()
+{
+	i="$1"
+	[ ! -f "$i" ] && return 0
 
 	name=${i##*/}
 	init_stamp start "$name"
@@ -33,4 +33,29 @@ for i in /etc/init.d/S??*; do
 
 	status=$?
 	init_stamp "done($status)" "$name"
+}
+
+# Run only the services required to mount the rootfs and expose devices before
+# PX4. USB/RNDIS, networking, SSH, DBus, audio, and Wi-Fi are deliberately
+# deferred until after the PX4 process has been launched.
+for i in \
+	/etc/init.d/S00* \
+	/etc/init.d/S01* \
+	/etc/init.d/S02* \
+	/etc/init.d/S05* \
+	/etc/init.d/S10*
+do
+	run_init_script "$i"
+done
+
+run_init_script /etc/init.d/S12powerfin-px4
+
+# Run every remaining service in its normal relative order.
+for i in /etc/init.d/S??*; do
+	case "${i##*/}" in
+		S00*|S01*|S02*|S05*|S10*|S12powerfin-px4)
+			continue
+			;;
+	esac
+	run_init_script "$i"
 done
