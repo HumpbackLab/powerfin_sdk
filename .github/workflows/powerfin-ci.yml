@@ -93,6 +93,7 @@ jobs:
             curl \
             device-tree-compiler \
             dosfstools \
+            e2fsprogs \
             expect \
             fakeroot \
             file \
@@ -183,6 +184,23 @@ jobs:
           case "${{ matrix.component }}" in
             buildroot)
               ./build.sh buildroot
+
+              # The SDK post-rootfs hooks populate output/buildroot/target.
+              # Buildroot can generate rootfs.ext2 before that staged tree is
+              # ready on a clean build, so regenerate only the filesystem and
+              # SD-card container from the completed PowerFin target.
+              test -r output/buildroot/target/etc/powerfin-release
+              rm -f \
+                buildroot/output/rockchip_powerfin/images/rootfs.ext2 \
+                buildroot/output/rockchip_powerfin/images/rootfs.ext4 \
+                buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img \
+                buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz \
+                buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz.sha256
+              ./build.sh bmake:rootfs-ext2
+              PATH="${PWD}/buildroot/output/rockchip_powerfin/host/bin:${PATH}" \
+                BUILD_DIR="${PWD}/buildroot/output/rockchip_powerfin/build" \
+                BINARIES_DIR="${PWD}/buildroot/output/rockchip_powerfin/images" \
+                buildroot/board/rockchip/powerfin/post-image.sh
               ;;
             firmware)
               ./build.sh loader
@@ -200,6 +218,9 @@ jobs:
             buildroot)
               test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
               test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz
+              debugfs -R 'stat /etc/powerfin-release' \
+                buildroot/output/rockchip_powerfin/images/rootfs.ext2 2>&1 | \
+                grep -q 'Type: regular'
               install -m 0644 \
                 buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz \
                 release-component/powerfin-sdcard.img.gz
