@@ -86,6 +86,49 @@ build_hal()
 	finish_build build_hal $@
 }
 
+build_betaflight()
+{
+	local bf_dir="${RK_BETAFLIGHT_DIR:-$RK_SDK_DIR/../betaflight}"
+	local package_dir="$RK_RTOS_BSP_DIR/common/hal/project/rk3506-betaflight/GCC"
+	local target="$RK_AMP_BETAFLIGHT_TARGET"
+	local elf="$bf_dir/obj/main/betaflight_${target}.elf"
+
+	if ! check_config RK_AMP_BETAFLIGHT_TARGET; then
+		fatal "Betaflight AMP image requested without RK_AMP_BETAFLIGHT_TARGET"
+		return 1
+	fi
+	if [ ! -f "$bf_dir/Makefile" ]; then
+		fatal "Betaflight tree not found: $bf_dir"
+		return 1
+	fi
+
+	message "=========================================="
+	message "  Building CPU $1: Betaflight-->$target"
+	message "=========================================="
+
+	(
+		amp_touch_export FIRMWARE_CPU_BASE
+		amp_touch_export DRAM_SIZE
+		amp_touch_export SRAM_BASE
+		amp_touch_export SRAM_SIZE
+		amp_touch_export CUR_CPU
+
+		make -C "$bf_dir" TARGET="$target" RK3506_SDK_ROOT="$RK_SDK_DIR" \
+			-j$(nproc) > "$RK_SDK_DIR/betaflight.log" 2>&1
+	)
+
+	if [ ! -f "$elf" ]; then
+		fatal "Betaflight ELF not produced: $elf"
+		return 1
+	fi
+	rm -f "$package_dir/$2.elf" "$package_dir/$2.bin" "$RK_OUTDIR/$2.bin"
+	cp "$elf" "$package_dir/$2.elf"
+	"${CROSS_COMPILE}objcopy" -O binary "$elf" "$package_dir/$2.bin"
+	ln -rsf "$package_dir/$2.bin" "$RK_OUTDIR/$2.bin"
+
+	finish_build build_betaflight "$@"
+}
+
 build_rtthread()
 {
 	local append=
@@ -156,6 +199,11 @@ clean_hook()
 		make clean >/dev/null || true
 	fi
 
+	if [ "$RK_AMP_BETAFLIGHT_TARGET" ]; then
+		rm -f "$RK_RTOS_BSP_DIR/common/hal/project/rk3506-betaflight/GCC"/betaflight*.elf
+		rm -f "$RK_RTOS_BSP_DIR/common/hal/project/rk3506-betaflight/GCC"/betaflight*.bin
+	fi
+
 	rm -rf "$RK_FIRMWARE_DIR/amp.img"
 }
 
@@ -173,7 +221,9 @@ build_images()
 		CUR_CPU=$(amp_get_value "$ITS_IMAGE" cpu)
 		CPU_BIN=$(amp_get_string "$ITS_IMAGE" data)
 		if (( $CUR_CPU > 0xff )); then
-			CUR_CPU=$((CUR_CPU >> 8))
+			# The low affinity byte of the MPIDR-style value is the CPU ID:
+			# 0xf00 -> CPU0, 0xf01 -> CPU1, 0xf02 -> CPU2.
+			CUR_CPU=$((CUR_CPU & 0xff))
 		fi
 		CUR_CPU=$(($CUR_CPU))
 
@@ -195,6 +245,10 @@ build_images()
 		SYS="${SYS}${CORE:+_$CORE}"
 
 		case $SYS in
+			betaflight|betaflight_ap)
+				build_betaflight $CUR_CPU \
+					"$(basename -s .bin $CPU_BIN)"
+				;;
 			hal_mcu)
 				build_hal RK_AMP_MCU_HAL_TARGET mcu \
 					  "$(basename -s .bin $CPU_BIN)"

@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+
+/dts-v1/;
+/ {
+	description = "PowerFin Betaflight bare-metal boot";
+	#address-cells = <1>;
+
+	images {
+		amp2 {
+			description = "betaflight-core2";
+			data = /incbin/("betaflight2.bin");
+			type = "firmware";
+			compression = "none";
+			arch = "arm";
+			cpu = <0xf02>;
+			thumb = <0>;
+			hyp = <0>;
+			load = <0x02e00000>;
+			compile {
+				size = <0x00100000>;
+				sys = "betaflight";
+				core = "ap";
+			};
+			udelay = <10000>;
+			hash {
+				algo = "sha256";
+			};
+		};
+	};
+
+	configurations {
+		default = "conf";
+		conf {
+			description = "PowerFin AMP images";
+			rollback-index = <0x0>;
+			loadables = "amp2";
+
+			signature {
+				algo = "sha256,rsa2048";
+				padding = "pss";
+				key-name-hint = "dev";
+				sign-images = "loadables";
+			};
+
+			linux {
+				description = "linux-os";
+				arch = "arm";
+				cpu = <0xf00>;
+				thumb = <0>;
+				hyp = <0>;
+				load = <0x00900000>;
+				boot-on = <0>;
+				udelay = <0>;
+			};
+		};
+	};
+};

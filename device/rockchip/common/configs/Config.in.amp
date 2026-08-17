@@ -32,6 +32,9 @@ config RK_AMP_HAL_TARGET
 	string "HAL target"
 	default RK_CHIP_FAMILY
 
+config RK_AMP_BETAFLIGHT_TARGET
+	string "Betaflight target"
+
 config RK_AMP_RTT_TARGET
 	string "RT-Thread target"
 	default "${RK_CHIP_FAMILY}-32"

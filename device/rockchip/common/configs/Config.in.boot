@@ -44,6 +44,14 @@ config RK_BOOT_FIT_PACK_SCRIPT
 	  Optional SDK-relative script used instead of mk-fitimage.sh. The output
 	  path is passed as "--output PATH".
 
+config RK_BOOT_FIT_MAX_SIZE
+	hex "maximum FIT image size"
+	default 0x0
+	help
+	  Maximum allowed size of the packed FIT image in bytes. A value of zero
+	  disables the size check. Custom FIT pack scripts may use this to enforce
+	  the limit imposed by the selected partition layout.
+
 endif # FIT image
 
 endmenu # Boot

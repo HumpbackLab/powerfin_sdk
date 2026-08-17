@@ -82,6 +82,21 @@ Buildroot 根文件系统保存在 SD 卡中。SPI NOR 分区表
 PX4 只在 SD 卡 Buildroot 根文件系统中。`update.img` 不包含 Buildroot 根文件系统、
 正常系统 PFC 或 PX4，但它包含随 `boot.img` 打包的 recovery PFC。
 
+Betaflight AMP 配置使用独立分区表
+`parameter-powerfin-spinor-amp.txt`。它把 16 MiB SPI NOR 布局调整为：
+
+| 分区 | NOR 范围 | 大小 |
+| --- | --- | --- |
+| `uboot` | 4–8 MiB | 4 MiB |
+| `boot` | 8–15 MiB | 7 MiB |
+| `amp` | 15–16 MiB | 1 MiB |
+
+其中 `amp` 分区保存由 U-Boot 在启动 Linux 前加载到 CPU2 的 Betaflight FIT
+镜像。选择 `powerfin_buildroot_spinor_betaflight_amp_defconfig` 后，自动生成的
+`update.img` 会同时包含 `uboot.img`、`boot.img` 和 `amp.img`。由于该配置会改变
+NOR 分区表，首次切换必须通过 USB Loader/MaskRom 完整烧写 `update.img`，不能只
+使用 `flash_zboot.sh` 更新 `boot` 分区。
+
 ## 2. 选择 PowerFin SPI NOR 配置
 
 首次编译、切换过其他板型，或者删除过 `output/` 后，先执行：

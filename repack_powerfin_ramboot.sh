@@ -26,11 +26,63 @@ ITS="${ROOT_DIR}/device/rockchip/.chips/rk3506/powerfin-boot.its"
 FIT_ITS="${OUTPUT_DIR}/powerfin-boot.its"
 MKIMAGE="${ROOT_DIR}/rkbin/tools/mkimage"
 ZIMAGE="${KERNEL_DIR}/arch/arm/boot/zImage"
-NORMAL_DTB="${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-spinor.dtb"
-RECOVERY_DTB="${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-ramboot.dtb"
 GEN_INIT_CPIO="${KERNEL_DIR}/usr/gen_init_cpio"
 OUTPUT_IMG="${OUTPUT_DIR}/powerfin-boot.itb"
-BOOT_PARTITION_SIZE=$((0x007f0000))
+KERNEL_DTS_NAME="${RK_KERNEL_DTS_NAME:-}"
+RECOVERY_DTS_NAME="${RK_BOOT_FIT_RECOVERY_DTS_NAME:-}"
+FIT_MAX_SIZE="${RK_BOOT_FIT_MAX_SIZE:-0}"
+
+usage() {
+	cat <<'EOF'
+Usage: repack_powerfin_ramboot.sh [options]
+
+Options:
+  --kernel-dts NAME    Normal device-tree name (without .dtb).
+  --recovery-dts NAME  Recovery device-tree name (without .dtb).
+  --max-fit-size SIZE  Maximum FIT size in bytes; zero disables the check.
+  --output PATH        Output FIT image path.
+EOF
+}
+
+while (($#)); do
+	case "$1" in
+		--kernel-dts)
+			KERNEL_DTS_NAME="${2:?missing value for --kernel-dts}"
+			shift 2
+			;;
+		--recovery-dts)
+			RECOVERY_DTS_NAME="${2:?missing value for --recovery-dts}"
+			shift 2
+			;;
+		--max-fit-size)
+			FIT_MAX_SIZE="${2:?missing value for --max-fit-size}"
+			shift 2
+			;;
+		--output)
+			OUTPUT_IMG="${2:?missing value for --output}"
+			shift 2
+			;;
+		-h|--help)
+			usage
+			exit 0
+			;;
+		*)
+			echo "unknown option: $1" >&2
+			usage >&2
+			exit 1
+			;;
+	esac
+done
+
+: "${KERNEL_DTS_NAME:?missing RK_KERNEL_DTS_NAME or --kernel-dts}"
+: "${RECOVERY_DTS_NAME:?missing RK_BOOT_FIT_RECOVERY_DTS_NAME or --recovery-dts}"
+if [[ ! "${FIT_MAX_SIZE}" =~ ^(0|[1-9][0-9]*|0[xX][0-9a-fA-F]+)$ ]]; then
+	echo "invalid FIT size limit: ${FIT_MAX_SIZE}" >&2
+	exit 1
+fi
+FIT_MAX_SIZE=$((FIT_MAX_SIZE))
+NORMAL_DTB="${KERNEL_DIR}/arch/arm/boot/dts/${KERNEL_DTS_NAME}.dtb"
+RECOVERY_DTB="${KERNEL_DIR}/arch/arm/boot/dts/${RECOVERY_DTS_NAME}.dtb"
 
 if [[ ! -f "${PFC_RELEASE_CONFIG}" ]]; then
 	echo "missing PFC release config: ${PFC_RELEASE_CONFIG}" >&2
@@ -60,16 +112,6 @@ PFC_TARBALL="${ROOT_DIR}/buildroot/dl/penguin-flight-console/${PFC_RELEASE_SOURC
 PFC_RELEASE_DIR="${BUILD_DIR}/pfc-${PFC_RELEASE_VERSION}-${PFC_RELEASE_SHA256:0:16}"
 PFC_BINARY="${PFC_RELEASE_DIR}/penguin-flight-console"
 PFC_BOARD_DIR="${PFC_RELEASE_DIR}"
-
-if [[ ${1:-} == "--output" ]]; then
-	OUTPUT_IMG="${2:?missing output path}"
-	shift 2
-fi
-
-if (($#)); then
-	echo "Usage: $0 [--output PATH]" >&2
-	exit 1
-fi
 
 verify_pfc_tarball() {
 	echo "${PFC_RELEASE_SHA256}  ${PFC_TARBALL}" | sha256sum -c - >/dev/null 2>&1
@@ -194,10 +236,10 @@ sed -e "s~@KERNEL_DTB@~${NORMAL_DTB}~" \
 "${MKIMAGE}" -f "${FIT_ITS}" -E -p 0x800 "${OUTPUT_IMG}"
 
 fit_size="$(stat -c %s "${OUTPUT_IMG}")"
-if ((fit_size > BOOT_PARTITION_SIZE)); then
+if ((FIT_MAX_SIZE > 0 && fit_size > FIT_MAX_SIZE)); then
 	echo "FIT image is too large for the NOR boot partition:" >&2
-	printf '  image: %d bytes\n  limit: %d bytes (0x007f0000)\n' \
-		"${fit_size}" "${BOOT_PARTITION_SIZE}" >&2
+	printf '  image: %d bytes\n  limit: %d bytes (0x%08x)\n' \
+		"${fit_size}" "${FIT_MAX_SIZE}" "${FIT_MAX_SIZE}" >&2
 	exit 1
 fi
 

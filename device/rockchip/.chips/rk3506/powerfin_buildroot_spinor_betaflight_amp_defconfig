@@ -14,8 +14,13 @@ RK_USB_RNDIS=y
 # RK_ROOTFS_IRQBALANCE is not set
 # RK_ROOTFS_FSTRIM is not set
 RK_UBOOT_CFG="rk3506_luckfox"
-RK_UBOOT_CFG_FRAGMENTS="powerfin_spinor"
+RK_UBOOT_CFG_FRAGMENTS="powerfin_spinor rk-amp"
 RK_UBOOT_SPL=y
+RK_AMP=y
+RK_AMP_HAL_TARGET=""
+RK_AMP_BETAFLIGHT_TARGET="POWERFIN"
+RK_AMP_RTT_TARGET=""
+RK_AMP_FIT_ITS="amp_linux_betaflight.its"
 RK_KERNEL_CFG="rk3506_luckfox_defconfig"
 RK_KERNEL_CFG_FRAGMENTS="powerfin.config"
 RK_KERNEL_DTS_NAME="rk3506-powerfin-spinor"
@@ -23,8 +28,9 @@ RK_BOOT_COMPRESSED=y
 RK_BOOT_FIT_ITS_NAME="powerfin-boot.its"
 RK_BOOT_FIT_RECOVERY_DTS_NAME="rk3506-powerfin-ramboot"
 RK_BOOT_FIT_PACK_SCRIPT="repack_powerfin_ramboot.sh"
-RK_BOOT_FIT_MAX_SIZE=0x7f0000
+RK_BOOT_FIT_MAX_SIZE=0x6f0000
 # RK_RECOVERY is not set
 RK_EXTRA_PARTITION_NUM=0
-RK_PARAMETER="parameter-powerfin-spinor.txt"
+RK_PARAMETER="parameter-powerfin-spinor-amp.txt"
 RK_USE_FIT_IMG=y
+RK_ROOTFS=y
