@@ -241,7 +241,7 @@ jobs:
       - preflight
       - build-components
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     env:
       GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
