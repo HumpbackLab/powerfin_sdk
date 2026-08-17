@@ -21,8 +21,17 @@ yes | python3 .repo/repo/repo manifest -r \
 cat "$RK_CONFIG" | sed "s/\(PASSWORD=\)\".*\"/\1\"********\"/" > \
 	"$INFO_DIR/rockchip_config"
 
-cp kernel/.config "$INFO_DIR/config-$RK_KERNEL_VERSION_RAW"
-cp kernel/System.map "$INFO_DIR/System.map-$RK_KERNEL_VERSION_RAW"
+if [ -r kernel/.config ]; then
+	cp kernel/.config "$INFO_DIR/config-$RK_KERNEL_VERSION_RAW"
+else
+	warning "Skipping kernel config debug info: kernel/.config is not built"
+fi
+
+if [ -r kernel/System.map ]; then
+	cp kernel/System.map "$INFO_DIR/System.map-$RK_KERNEL_VERSION_RAW"
+else
+	warning "Skipping kernel symbol debug info: kernel/System.map is not built"
+fi
 
 EXTRA_FILES=" \
 	/etc/os-release /etc/fstab /proc/config.gz \
