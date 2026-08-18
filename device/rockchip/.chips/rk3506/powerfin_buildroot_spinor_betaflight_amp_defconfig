@@ -19,7 +19,6 @@ RK_UBOOT_SPL=y
 RK_AMP=y
 RK_AMP_HAL_TARGET=""
 RK_AMP_BETAFLIGHT_TARGET="POWERFIN"
-RK_AMP_RTT_TARGET=""
 RK_AMP_FIT_ITS="amp_linux_betaflight.its"
 RK_KERNEL_CFG="rk3506_luckfox_defconfig"
 RK_KERNEL_CFG_FRAGMENTS="powerfin.config"

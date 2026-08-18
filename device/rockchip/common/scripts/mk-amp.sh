@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-RK_RTOS_BSP_DIR=$RK_SDK_DIR/rtos/bsp/rockchip
+RK_HAL_DIR=$RK_SDK_DIR/hal
 ITS_FILE="$RK_CHIP_DIR/$RK_AMP_FIT_ITS"
 
 RK_SCRIPTS_DIR="${RK_SCRIPTS_DIR:-$(dirname "$(realpath "$0")")}"
@@ -64,7 +64,7 @@ build_hal()
 	message "  Building CPU $2: HAL-->${!1}"
 	message "=========================================="
 
-	cd "$RK_RTOS_BSP_DIR/common/hal/project/"${!1}"/GCC"
+	cd "$RK_HAL_DIR/project/"${!1}"/GCC"
 
 	[ ! -n "$CC" ] || append=$CC
 	(
@@ -89,7 +89,6 @@ build_hal()
 build_betaflight()
 {
 	local bf_dir="${RK_BETAFLIGHT_DIR:-$RK_SDK_DIR/../betaflight}"
-	local package_dir="$RK_RTOS_BSP_DIR/common/hal/project/rk3506-betaflight/GCC"
 	local target="$RK_AMP_BETAFLIGHT_TARGET"
 	local elf="$bf_dir/obj/main/betaflight_${target}.elf"
 
@@ -121,87 +120,24 @@ build_betaflight()
 		fatal "Betaflight ELF not produced: $elf"
 		return 1
 	fi
-	rm -f "$package_dir/$2.elf" "$package_dir/$2.bin" "$RK_OUTDIR/$2.bin"
-	cp "$elf" "$package_dir/$2.elf"
-	"${CROSS_COMPILE}objcopy" -O binary "$elf" "$package_dir/$2.bin"
-	ln -rsf "$package_dir/$2.bin" "$RK_OUTDIR/$2.bin"
+	rm -f "$RK_OUTDIR/$2.elf" "$RK_OUTDIR/$2.bin"
+	cp "$elf" "$RK_OUTDIR/$2.elf"
+	"${CROSS_COMPILE}objcopy" -O binary "$elf" "$RK_OUTDIR/$2.bin"
 
 	finish_build build_betaflight "$@"
-}
-
-build_rtthread()
-{
-	local append=
-
-	check_config "$1" || return 0
-
-	message "=========================================="
-	message "  Building CPU $2: RT-Thread-->${!1}"
-	message "                  Config-->$4"
-	message "=========================================="
-
-	cd "$RK_RTOS_BSP_DIR/${!1}"
-
-	export RTT_ROOT=$RK_RTOS_BSP_DIR/../../
-
-	amp_touch_export FIRMWARE_CPU_BASE RTT_PRMEM_BASE
-	amp_touch_export DRAM_SIZE RTT_PRMEM_SIZE
-	amp_touch_export SRAM_BASE RTT_SRAM_BASE
-	amp_touch_export SRAM_SIZE RTT_SRAM_SIZE
-	amp_touch_export SHMEM_BASE RTT_SHMEM_BASE
-	amp_touch_export SHMEM_SIZE RTT_SHMEM_SIZE
-	amp_touch_export CC RTT_EXEC_PATH
-
-	ROOT_PART_OFFSET=$(rk_partition_start root)
-	ROOT_PART_SIZE=$(rk_partition_size root)
-
-	if [ -f "$4" ] ;then
-		scons --useconfig="$4"
-	else
-		warning "Warning: Config $4 not exit!\n"
-		warning "Default config(.config) will be used!\n"
-	fi
-
-	scons -c > /dev/null
-	rm -rf gcc_arm.ld Image/rtt$2.elf Image/rtt$2.bin
-	scons -j$(nproc) > ${RK_SDK_DIR}/rtt.log 2>&1
-
-	cp rtthread.elf Image/rtt$2.elf
-	mv rtthread.bin Image/rtt$2.bin
-	ln -rsf Image/rtt$2.bin $RK_OUTDIR/$3.bin
-
-	if [ -n "$RK_AMP_RTT_ROOT_DATA" ] && [ -n "$ROOT_PART_SIZE" ] ;then
-
-		RTT_ROOT_USERDAT=$RK_RTOS_BSP_DIR/$RK_AMP_RTT_TARGET/$RK_AMP_RTT_ROOT_DATA
-
-		ROOT_SECTOR_SIZE=$(grep -r "CONFIG_RT_DFS_ELM_MAX_SECTOR_SIZE" "$4" | cut -d '=' -f 2)
-		if [ -z $ROOT_SECTOR_SIZE ];then
-			ROOT_SECTOR_SIZE=4096
-		fi
-
-		./mkroot.sh root $RTT_ROOT_USERDAT $RK_CHIP_DIR/$RK_PARAMETER $ROOT_SECTOR_SIZE $RK_FIRMWARE_DIR/root.img
-	fi
-
-	finish_build build_rtthread $@
 }
 
 clean_hook()
 {
 	[ "$RK_AMP" ] || return 0
 
-	if [ "$RK_AMP_RTT_TARGET" ]; then
-		cd "$RK_RTOS_BSP_DIR/$RK_AMP_RTT_TARGET"
-		scons -c >/dev/null || true
-	fi
-
 	if [ "$RK_AMP_HAL_TARGET" ]; then
-		cd "$RK_RTOS_BSP_DIR/common/hal/project/$RK_AMP_HAL_TARGET/GCC"
+		cd "$RK_HAL_DIR/project/$RK_AMP_HAL_TARGET/GCC"
 		make clean >/dev/null || true
 	fi
 
 	if [ "$RK_AMP_BETAFLIGHT_TARGET" ]; then
-		rm -f "$RK_RTOS_BSP_DIR/common/hal/project/rk3506-betaflight/GCC"/betaflight*.elf
-		rm -f "$RK_RTOS_BSP_DIR/common/hal/project/rk3506-betaflight/GCC"/betaflight*.bin
+		rm -f "$RK_OUTDIR"/betaflight*.elf "$RK_OUTDIR"/betaflight*.bin
 	fi
 
 	rm -rf "$RK_FIRMWARE_DIR/amp.img"
@@ -237,8 +173,7 @@ build_images()
 		SYS=$(amp_get_string "$ITS_IMAGE" sys)
 		CORE=$(amp_get_string "$ITS_IMAGE" core)
 
-		# In RTT: 'CC' means the directory where the GCC tools are located.
-		# In HAL: 'CC' means the directory and the prefix of GCC.
+		# In HAL, 'CC' means the directory and the prefix of GCC.
 		CC=$(amp_get_string "$ITS_IMAGE" cc)
 		[ ! -n "$CC" ] || CC="${RK_SDK_DIR}/${CC}"
 
@@ -258,14 +193,10 @@ build_images()
 					  "$(basename -s .bin $CPU_BIN)"
 				;;
 			rtt_mcu)
-				build_rtthread RK_AMP_MCU_RTT_TARGET mcu \
-					       "$(basename -s .bin $CPU_BIN)" \
-					       "$(amp_get_string "$ITS_IMAGE" rtt_config)"
+				fatal "RT-Thread AMP images are not supported by this SDK"
 				;;
 			rtt|rtt_ap)
-				build_rtthread RK_AMP_RTT_TARGET $CUR_CPU \
-					       "$(basename -s .bin $CPU_BIN)" \
-					       "$(amp_get_string "$ITS_IMAGE" rtt_config)" \
+				fatal "RT-Thread AMP images are not supported by this SDK"
 				;;
 			*)
 				break;;
@@ -283,8 +214,6 @@ build_hook()
 	message "=========================================="
 	message "          Start building AMP"
 	message "=========================================="
-
-	"$RK_SCRIPTS_DIR/check-amp.sh"
 
 	export CROSS_COMPILE=$(get_toolchain AMP "$RK_AMP_ARCH" "" none)
 	[ "$CROSS_COMPILE" ] || exit 1
@@ -323,7 +252,8 @@ build_hook()
 	sed -i '/share {/,/}/d' amp.its
 	sed -i '/compile {/,/}/d' amp.its
 
-	$RK_RTOS_BSP_DIR/tools/mkimage -f amp.its -E -p 0xe00 $RK_FIRMWARE_DIR/amp.img
+	"$RK_HAL_DIR/tools/mkimage" -f amp.its -E -p 0xe00 \
+		"$RK_FIRMWARE_DIR/amp.img"
 
 	finish_build amp $@
 }
