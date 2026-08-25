@@ -12,12 +12,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  preflight:
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 5
 
     env:
-      FORCE_UNSAFE_CONFIGURE: "1"
       GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
 
     steps:
@@ -29,81 +28,19 @@ jobs:
             exit 1
           fi
 
-      - name: Free runner disk space
-        shell: bash
-        run: |
-          sudo rm -rf \
-            /opt/ghc \
-            /opt/hostedtoolcache/CodeQL \
-            /usr/local/.ghcup \
-            /usr/local/lib/android \
-            /usr/share/dotnet
-          docker system prune --all --force || true
-          df -h /
+  build:
+    needs: preflight
+    uses: ./.github/workflows/powerfin-build.yml
 
-      - name: Install host dependencies
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            bc \
-            bison \
-            build-essential \
-            ca-certificates \
-            cpio \
-            curl \
-            device-tree-compiler \
-            dosfstools \
-            expect \
-            fakeroot \
-            file \
-            flex \
-            git-lfs \
-            jq \
-            libgmp-dev \
-            libmpc-dev \
-            libncurses-dev \
-            libsqlite3-dev \
-            libssl-dev \
-            lz4 \
-            mtools \
-            ninja-build \
-            parted \
-            python3 \
-            python3-pip \
-            python-is-python3 \
-            rsync \
-            unzip \
-            wget \
-            xz-utils \
-            zstd
-          git lfs install
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
-      - name: Install Python 2 for U-Boot
-        shell: bash
-        run: |
-          curl --fail --location \
-            https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz \
-            --output "${RUNNER_TEMP}/Python-2.7.18.tgz"
-          tar -C "${RUNNER_TEMP}" -xf "${RUNNER_TEMP}/Python-2.7.18.tgz"
-          cd "${RUNNER_TEMP}/Python-2.7.18"
-          ./configure \
-            --prefix="${RUNNER_TEMP}/python2" \
-            --without-ensurepip
-          make --jobs="$(nproc)"
-          make install
-          echo "${RUNNER_TEMP}/python2/bin" >> "${GITHUB_PATH}"
+    env:
+      GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
 
-      - name: Install repo
-        shell: bash
-        run: |
-          install -d "${HOME}/.local/bin"
-          curl --fail --location \
-            https://storage.googleapis.com/git-repo-downloads/repo \
-            --output "${HOME}/.local/bin/repo"
-          chmod +x "${HOME}/.local/bin/repo"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-
+    steps:
       - name: Resolve release timestamp
         shell: bash
         env:
@@ -122,70 +59,18 @@ jobs:
             echo "GITHUB_TRIGGERED_AT=${triggered_at}"
           } >> "${GITHUB_ENV}"
 
-      - name: Check out SDK root
+      - name: Check out release script
         uses: actions/checkout@v4
         with:
-          lfs: true
           path: sdk
+          sparse-checkout: .github/scripts/publish-gitee-release.sh
+          sparse-checkout-cone-mode: false
 
-      - name: Sync SDK component repositories
-        working-directory: sdk
-        shell: bash
-        run: |
-          repo init \
-            --manifest-url=https://github.com/HumpbackLab/manifest.git \
-            --manifest-branch=master \
-            --manifest-name=powerfin.xml \
-            --depth=1
-          repo sync --current-branch --jobs=4 --fail-fast --no-tags
-          repo manifest -r -o "${RUNNER_TEMP}/powerfin-resolved.xml"
-          if grep -q '192\.168\.10\.75' "${RUNNER_TEMP}/powerfin-resolved.xml"; then
-            echo "::error::Resolved manifest still contains the vendor intranet remote."
-            exit 1
-          fi
-
-      - name: Build complete PowerFin image
-        working-directory: sdk
-        shell: bash
-        run: |
-          ./build.sh rk3506:powerfin_buildroot_spinor_defconfig
-          ./build.sh bmake:busybox-source
-          ./build.sh all
-
-      - name: Verify images
-        working-directory: sdk
-        shell: bash
-        run: |
-          test -s kernel-6.1/zboot.img
-          test -s output/firmware/update.img
-          test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img
-          test -s buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz
-          install -d release
-          install -m 0644 \
-            kernel-6.1/zboot.img \
-            release/zboot.img
-          install -m 0644 \
-            output/firmware/update.img \
-            release/update.img
-          install -m 0644 \
-            buildroot/output/rockchip_powerfin/images/powerfin-sdcard.img.gz \
-            release/powerfin-sdcard.img.gz
-          (
-            cd release
-            sha256sum powerfin-sdcard.img.gz update.img zboot.img > SHA256SUMS
-          )
-
-      - name: Upload PowerFin images
-        uses: actions/upload-artifact@v4
+      - name: Download PowerFin images
+        uses: actions/download-artifact@v4
         with:
           name: powerfin-images-${{ github.run_id }}-${{ github.run_attempt }}
-          retention-days: 7
-          if-no-files-found: error
-          path: |
-            sdk/release/powerfin-sdcard.img.gz
-            sdk/release/update.img
-            sdk/release/zboot.img
-            sdk/release/SHA256SUMS
+          path: sdk/release
 
       - name: Publish Gitee release
         working-directory: sdk
@@ -194,14 +79,3 @@ jobs:
           GITEE_OWNER: ncer
           GITEE_REPO: powerfin_sdk
         run: .github/scripts/publish-gitee-release.sh release
-
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: powerfin-build-logs-${{ github.run_id }}
-          retention-days: 7
-          if-no-files-found: ignore
-          path: |
-            sdk/output/sessions/
-            sdk/buildroot/output/rockchip_powerfin/build/build-time.log
