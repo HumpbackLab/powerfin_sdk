@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KERNEL_DIR="${ROOT_DIR}/kernel-6.1"
 NORMAL_DTS_NAME="rk3506-powerfin-spinor"
 RECOVERY_DTS_NAME="rk3506-powerfin-ramboot"
-FIT_MAX_SIZE=0x7f0000
+FIT_MAX_SIZE=0x7e0000
 REPACK="${ROOT_DIR}/repack_powerfin_ramboot.sh"
 OUTPUT="${KERNEL_DIR}/zboot.img"
 BUILD_DTB=0
@@ -57,8 +57,17 @@ NORMAL_DTS="${KERNEL_DIR}/arch/arm/boot/dts/${NORMAL_DTS_NAME}.dts"
 RECOVERY_DTS="${KERNEL_DIR}/arch/arm/boot/dts/${RECOVERY_DTS_NAME}.dts"
 NORMAL_DTB="${KERNEL_DIR}/arch/arm/boot/dts/${NORMAL_DTS_NAME}.dtb"
 RECOVERY_DTB="${KERNEL_DIR}/arch/arm/boot/dts/${RECOVERY_DTS_NAME}.dtb"
+OVERLAY_DTS=(
+	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-motor-pwm.dts"
+	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-spi1-pwm.dts"
+)
+OVERLAY_DTBO=(
+	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-motor-pwm.dtbo"
+	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-spi1-pwm.dtbo"
+)
 
-for file in "${NORMAL_DTS}" "${RECOVERY_DTS}" "${REPACK}"; do
+for file in "${NORMAL_DTS}" "${RECOVERY_DTS}" "${OVERLAY_DTS[@]}" \
+	"${REPACK}"; do
 	if [[ ! -f "${file}" ]]; then
 		echo "missing required file: ${file}" >&2
 		exit 1
@@ -68,12 +77,17 @@ done
 if ((BUILD_DTB)); then
 	"${ROOT_DIR}/build.sh" "kernel-make:${NORMAL_DTS_NAME}.dtb"
 	"${ROOT_DIR}/build.sh" "kernel-make:${RECOVERY_DTS_NAME}.dtb"
-elif [[ ! -f "${NORMAL_DTB}" || ! -f "${RECOVERY_DTB}" ]]; then
+	"${ROOT_DIR}/build.sh" kernel-make:rk3506-powerfin-motor-pwm.dtbo
+	"${ROOT_DIR}/build.sh" kernel-make:rk3506-powerfin-spi1-pwm.dtbo
+elif [[ ! -f "${NORMAL_DTB}" || ! -f "${RECOVERY_DTB}" ||
+	! -f "${OVERLAY_DTBO[0]}" || ! -f "${OVERLAY_DTBO[1]}" ]]; then
 	echo "missing required PowerFin DTB" >&2
 	echo "rerun with --build-dtb" >&2
 	exit 1
 elif [[ "${NORMAL_DTS}" -nt "${NORMAL_DTB}" || \
-	"${RECOVERY_DTS}" -nt "${RECOVERY_DTB}" ]]; then
+	"${RECOVERY_DTS}" -nt "${RECOVERY_DTB}" || \
+	"${OVERLAY_DTS[0]}" -nt "${OVERLAY_DTBO[0]}" || \
+	"${OVERLAY_DTS[1]}" -nt "${OVERLAY_DTBO[1]}" ]]; then
 	echo "a PowerFin DTS is newer than its DTB" >&2
 	echo "rerun with --build-dtb" >&2
 	exit 1

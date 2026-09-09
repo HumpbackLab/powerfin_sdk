@@ -23,7 +23,7 @@ RK_BOOT_COMPRESSED=y
 RK_BOOT_FIT_ITS_NAME="powerfin-boot.its"
 RK_BOOT_FIT_RECOVERY_DTS_NAME="rk3506-powerfin-ramboot"
 RK_BOOT_FIT_PACK_SCRIPT="repack_powerfin_ramboot.sh"
-RK_BOOT_FIT_MAX_SIZE=0x7f0000
+RK_BOOT_FIT_MAX_SIZE=0x7e0000
 # RK_RECOVERY is not set
 RK_EXTRA_PARTITION_NUM=0
 RK_PARAMETER="parameter-powerfin-spinor.txt"

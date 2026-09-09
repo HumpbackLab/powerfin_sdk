@@ -83,6 +83,8 @@ fi
 FIT_MAX_SIZE=$((FIT_MAX_SIZE))
 NORMAL_DTB="${KERNEL_DIR}/arch/arm/boot/dts/${KERNEL_DTS_NAME}.dtb"
 RECOVERY_DTB="${KERNEL_DIR}/arch/arm/boot/dts/${RECOVERY_DTS_NAME}.dtb"
+MOTOR_PWM_DTBO="${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-motor-pwm.dtbo"
+SPI1_PWM_DTBO="${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-spi1-pwm.dtbo"
 
 if [[ ! -f "${PFC_RELEASE_CONFIG}" ]]; then
 	echo "missing PFC release config: ${PFC_RELEASE_CONFIG}" >&2
@@ -175,6 +177,7 @@ for file in "${BUSYBOX_TARBALL}" "${CROSS_COMPILE}gcc" \
 	"${BUSYBOX_CONFIG}" "${MERGE_CONFIG}" "${INIT}" \
 	"${UDHCPD_CONFIG}" "${INITRAMFS_TEMPLATE}" "${ITS}" \
 	"${MKIMAGE}" "${ZIMAGE}" "${NORMAL_DTB}" "${RECOVERY_DTB}" \
+	"${MOTOR_PWM_DTBO}" "${SPI1_PWM_DTBO}" \
 	"${GEN_INIT_CPIO}" "${PFC_BINARY}" \
 	"${PFC_BOARD_DIR}/board.conf" \
 	"${PFC_BOARD_DIR}/scripts/kernel-flash.sh" \
@@ -229,6 +232,8 @@ gzip -n -9 -c "${INITRAMFS_CPIO}" >"${INITRAMFS_GZ}"
 
 sed -e "s~@KERNEL_DTB@~${NORMAL_DTB}~" \
 	-e "s~@RECOVERY_KERNEL_DTB@~${RECOVERY_DTB}~" \
+	-e "s~@MOTOR_PWM_DTBO@~${MOTOR_PWM_DTBO}~" \
+	-e "s~@SPI1_PWM_DTBO@~${SPI1_PWM_DTBO}~" \
 	-e "s~@KERNEL_IMG@~${ZIMAGE}~" \
 	-e "s~@RAMDISK_IMG@~${INITRAMFS_GZ}~" \
 	"${ITS}" >"${FIT_ITS}"

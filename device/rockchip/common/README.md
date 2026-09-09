@@ -69,10 +69,20 @@ PowerFin 的 SPI NOR 只保存启动所需内容：
 - `MiniLoaderAll.bin`
 - `uboot.img`
 - `boot.img`（Linux 内核、正常/恢复设备树和 recovery initramfs）
+- `boardcfg`（冗余 U-Boot environment，用于选择硬件 Profile）
 
-Buildroot 根文件系统保存在 SD 卡中。SPI NOR 分区表
-`device/rockchip/.chips/rk3506/parameter-powerfin-spinor.txt` 只有 `uboot`
-和 `boot` 分区。PowerFin 实际上有两份 PFC：
+Buildroot 根文件系统保存在 SD 卡的第二个 ext4 分区 `/dev/mmcblk0p2` 中。SPI NOR 分区表
+`device/rockchip/.chips/rk3506/parameter-powerfin-spinor.txt` 的布局如下。最后
+64 KiB 由 GPT 备份表占用，因此 `boardcfg` 在 Linux 中可用 64 KiB，正好保存两份
+32 KiB environment：
+
+| 分区 | NOR 范围 | 可用大小 |
+| --- | --- | --- |
+| `uboot` | 4–8 MiB | 4 MiB |
+| `boot` | 8–15.875 MiB | 7.875 MiB |
+| `boardcfg` | 15.875–15.9375 MiB | 64 KiB |
+
+PowerFin 实际上有两份 PFC：
 
 | PFC | 所在位置 |
 | --- | --- |
@@ -89,13 +99,38 @@ Betaflight AMP 配置使用独立分区表
 | --- | --- | --- |
 | `uboot` | 4–8 MiB | 4 MiB |
 | `boot` | 8–15 MiB | 7 MiB |
-| `amp` | 15–16 MiB | 1 MiB |
+| `bf-config` | 15–15.0625 MiB | 64 KiB |
+| `amp` | 15.0625–15.875 MiB | 832 KiB |
+| `boardcfg` | 15.875–15.9375 MiB | 64 KiB |
 
 其中 `amp` 分区保存由 U-Boot 在启动 Linux 前加载到 CPU2 的 Betaflight FIT
 镜像。选择 `powerfin_buildroot_spinor_betaflight_amp_defconfig` 后，自动生成的
 `update.img` 会同时包含 `uboot.img`、`boot.img` 和 `amp.img`。由于该配置会改变
 NOR 分区表，首次切换必须通过 USB Loader/MaskRom 完整烧写 `update.img`，不能只
 使用 `flash_zboot.sh` 更新 `boot` 分区。
+
+### 1.1 切换设备树硬件 Profile
+
+正常 Buildroot 系统提供 `powerfin-boardcfg`，PFC 后端可直接调用同一命令。配置写入
+SPI NOR 的冗余 environment，重启后由 U-Boot 将对应 overlay 叠加到正常系统 DTB；
+Recovery 始终使用固定 DTB，不受 Profile 影响。
+
+```bash
+powerfin-boardcfg status
+powerfin-boardcfg set motor pwm    # FlexBUS D0-D2 -> PWM1 CH0-CH2，D3 不使用
+powerfin-boardcfg set spi1 pwm     # SPI1 CLK/MISO/MOSI -> PWM1 CH3-CH5
+reboot
+```
+
+恢复默认的 DShot + SPI1：
+
+```bash
+powerfin-boardcfg reset
+reboot
+```
+
+首次使用该功能必须完整烧写新的 `update.img`，不能只刷 `zboot.img`，因为 U-Boot 和
+SPI NOR 分区表也同时发生了变化。
 
 ## 2. 选择 PowerFin SPI NOR 配置
 

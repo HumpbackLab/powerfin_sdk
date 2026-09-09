@@ -81,6 +81,13 @@ do_build()
 				KERNEL_DTB_TARGETS+=(
 					"$RK_BOOT_FIT_RECOVERY_DTS_NAME.dtb")
 			fi
+			case "$RK_KERNEL_DTS_NAME" in
+				rk3506-powerfin-spinor*)
+					KERNEL_DTB_TARGETS+=(
+						rk3506-powerfin-motor-pwm.dtbo
+						rk3506-powerfin-spi1-pwm.dtbo)
+					;;
+			esac
 
 			if [ -n "$RK_BOOT_FIT_ITS" ] &&
 				! grep -q '@RESOURCE_IMG@' "$RK_BOOT_FIT_ITS"; then
