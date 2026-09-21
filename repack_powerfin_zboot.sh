@@ -60,10 +60,12 @@ RECOVERY_DTB="${KERNEL_DIR}/arch/arm/boot/dts/${RECOVERY_DTS_NAME}.dtb"
 OVERLAY_DTS=(
 	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-motor-pwm.dts"
 	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-spi1-pwm.dts"
+	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-dshot-normal.dts"
 )
 OVERLAY_DTBO=(
 	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-motor-pwm.dtbo"
 	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-spi1-pwm.dtbo"
+	"${KERNEL_DIR}/arch/arm/boot/dts/rk3506-powerfin-dshot-normal.dtbo"
 )
 
 for file in "${NORMAL_DTS}" "${RECOVERY_DTS}" "${OVERLAY_DTS[@]}" \
@@ -79,15 +81,18 @@ if ((BUILD_DTB)); then
 	"${ROOT_DIR}/build.sh" "kernel-make:${RECOVERY_DTS_NAME}.dtb"
 	"${ROOT_DIR}/build.sh" kernel-make:rk3506-powerfin-motor-pwm.dtbo
 	"${ROOT_DIR}/build.sh" kernel-make:rk3506-powerfin-spi1-pwm.dtbo
+	"${ROOT_DIR}/build.sh" kernel-make:rk3506-powerfin-dshot-normal.dtbo
 elif [[ ! -f "${NORMAL_DTB}" || ! -f "${RECOVERY_DTB}" ||
-	! -f "${OVERLAY_DTBO[0]}" || ! -f "${OVERLAY_DTBO[1]}" ]]; then
+	! -f "${OVERLAY_DTBO[0]}" || ! -f "${OVERLAY_DTBO[1]}" ||
+	! -f "${OVERLAY_DTBO[2]}" ]]; then
 	echo "missing required PowerFin DTB" >&2
 	echo "rerun with --build-dtb" >&2
 	exit 1
 elif [[ "${NORMAL_DTS}" -nt "${NORMAL_DTB}" || \
 	"${RECOVERY_DTS}" -nt "${RECOVERY_DTB}" || \
 	"${OVERLAY_DTS[0]}" -nt "${OVERLAY_DTBO[0]}" || \
-	"${OVERLAY_DTS[1]}" -nt "${OVERLAY_DTBO[1]}" ]]; then
+	"${OVERLAY_DTS[1]}" -nt "${OVERLAY_DTBO[1]}" || \
+	"${OVERLAY_DTS[2]}" -nt "${OVERLAY_DTBO[2]}" ]]; then
 	echo "a PowerFin DTS is newer than its DTB" >&2
 	echo "rerun with --build-dtb" >&2
 	exit 1

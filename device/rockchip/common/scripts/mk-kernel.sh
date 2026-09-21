@@ -85,7 +85,8 @@ do_build()
 				rk3506-powerfin-spinor*)
 					KERNEL_DTB_TARGETS+=(
 						rk3506-powerfin-motor-pwm.dtbo
-						rk3506-powerfin-spi1-pwm.dtbo)
+						rk3506-powerfin-spi1-pwm.dtbo
+						rk3506-powerfin-dshot-normal.dtbo)
 					;;
 			esac
 
