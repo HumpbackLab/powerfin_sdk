@@ -10,9 +10,9 @@
 ### END INIT INFO
 
 DISK=/dev/mmcblk0
-PART=/dev/mmcblk0p2
+PART=/dev/mmcblk0p4
 SYS_DISK=/sys/class/block/mmcblk0
-SYS_PART=/sys/class/block/mmcblk0p2
+SYS_PART=/sys/class/block/mmcblk0p4
 RESIZED_MARKER=/.resized
 FONT_MARKER=/.at7456-font-written
 FONT_TOOL=/usr/bin/at7456e_font
@@ -52,14 +52,14 @@ grow_root_partition()
 	# Allow a 1 MiB tail gap so an already expanded card is a no-op.
 	[ $((disk_sectors - part_end)) -le 2048 ] && return 0
 
-	echo "PowerFin: expanding SD root partition to the end of the card"
+	echo "PowerFin: expanding SD root partition 4 to the end of the card"
 
 	# disk-helper's marker only describes the filesystem size. Force its
 	# resize check after changing the partition boundary.
 	rm -f "$RESIZED_MARKER"
 
-	if ! parted -s "$DISK" resizepart 2 100%; then
-		echo "PowerFin: failed to resize partition 2; will retry next boot" >&2
+	if ! parted -s "$DISK" resizepart 4 100%; then
+		echo "PowerFin: failed to resize partition 4; will retry next boot" >&2
 		return 0
 	fi
 
