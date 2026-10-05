@@ -284,6 +284,17 @@ Buildroot 根文件系统发生变化后，应重新写入上述 SD 卡镜像；
 
 这会删除 `buildroot/output/rockchip_powerfin/` 并完整重编根文件系统，耗时明显更长。
 
+清理buildroot的PFC和PX4缓存：
+```
+  make -C buildroot/output/rockchip_powerfin \
+      penguin-flight-console-dirclean px4-powerfin-dirclean
+
+  rm -rf buildroot/dl/penguin-flight-console buildroot/dl/px4-powerfin
+
+  make -C buildroot/output/rockchip_powerfin \
+      penguin-flight-console px4-powerfin
+```
+
 ## 7. 产物路径汇总
 
 | 产物 | 路径 | 用途 |
