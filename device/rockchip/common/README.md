@@ -82,6 +82,12 @@ Buildroot 根文件系统保存在 SD 卡的第二个 ext4 分区 `/dev/mmcblk0p
 | `boot` | 8–15.875 MiB | 7.875 MiB |
 | `boardcfg` | 15.875–15.9375 MiB | 64 KiB |
 
+PowerFin SPI NOR 的完整 `update.img`（含 AMP 配置）会打包一份 64 KiB、全 `0xff` 的
+`boardcfg.img`。烧写该包会清空 boardcfg 中所有 U-Boot 环境变量；下次启动由 U-Boot
+重新保存默认配置，三个功能 overlay 均关闭，DShot 恢复默认双向模式。
+单独更新 `uboot.img`、`zboot.img` 不会清空 boardcfg；OTA 打包流程不会主动加入此重置镜像。
+旧的 `update.img` 不会自动获得这个行为，需要重新运行 `./build.sh updateimg`。
+
 PowerFin 实际上有两份 PFC：
 
 | PFC | 所在位置 |
@@ -102,6 +108,12 @@ Betaflight AMP 配置使用独立分区表
 | `bf-config` | 15–15.0625 MiB | 64 KiB |
 | `amp` | 15.0625–15.875 MiB | 832 KiB |
 | `boardcfg` | 15.875–15.9375 MiB | 64 KiB |
+
+PowerFin SPI NOR 的完整 `update.img`（含 AMP 配置）会打包一份 64 KiB、全 `0xff` 的
+`boardcfg.img`。烧写该包会清空 boardcfg 中所有 U-Boot 环境变量；下次启动由 U-Boot
+重新保存默认配置，三个功能 overlay 均关闭，DShot 恢复默认双向模式。
+单独更新 `uboot.img`、`zboot.img` 不会清空 boardcfg；OTA 打包流程不会主动加入此重置镜像。
+旧的 `update.img` 不会自动获得这个行为，需要重新运行 `./build.sh updateimg`。
 
 其中 `amp` 分区保存由 U-Boot 在启动 Linux 前加载到 CPU2 的 Betaflight FIT
 镜像。选择 `powerfin_buildroot_spinor_betaflight_amp_defconfig` 后，自动生成的

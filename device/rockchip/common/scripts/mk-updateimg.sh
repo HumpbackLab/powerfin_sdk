@@ -48,6 +48,31 @@ gen_package_file()
 	done
 }
 
+prepare_powerfin_boardcfg()
+{
+	case "$1" in
+		update|update-ab) ;;
+		*) return 0 ;;
+	esac
+	case "$RK_PARAMETER" in
+		parameter-powerfin-spinor.txt|parameter-powerfin-spinor-amp.txt) ;;
+		*) return 0 ;;
+	esac
+
+	# Clear both 32 KiB environments, leaving the backup GPT untouched.
+	# Remove a staging symlink before creating the erased image.
+	notice "Resetting PowerFin boardcfg in the full update image"
+	rm -f boardcfg.img
+	dd if=/dev/zero bs=1024 count=64 status=none | \
+		LC_ALL=C tr '\000' '\377' > boardcfg.img
+	[ "$(stat -c %s boardcfg.img)" -eq 65536 ]
+
+	# Also support custom package files without modifying their sources.
+	awk '$1 != "boardcfg" { print }
+		END { print "boardcfg\tboardcfg.img" }' package-file > package-file.new
+	mv -f package-file.new package-file
+}
+
 do_build_updateimg()
 {
 	check_config RK_UPDATE || false
@@ -104,6 +129,8 @@ do_build_updateimg()
 		gen_package_file $TYPE
 		cat package-file
 	fi
+
+	prepare_powerfin_boardcfg "$TYPE"
 
 	notice "Packing $TARGET for $TYPE..."
 
